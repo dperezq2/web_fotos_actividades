@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fotos de la Reunión</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-camera"></i> Fotos de la Reunión</h1>
+        
+        {% if message %}
+        <div class="message {{ 'success' if message.type == 'success' else 'error' }}">
+            {{ message.text }}
+        </div>
+        {% endif %}
+        
+        <div class="upload-section">
+            <form method="post" enctype="multipart/form-data" id="uploadForm">
+                <div class="file-input-container">
+                    <label class="custom-file-upload gallery-btn" onclick="triggerFileInput('gallery')">
+                        <i class="fas fa-images"></i> Seleccionar de Galería
+                    </label>
+                    <label class="custom-file-upload camera-btn" onclick="triggerFileInput('camera')">
+                        <i class="fas fa-camera"></i> Tomar Foto
+                    </label>
+                    <input type="file" name="photos" id="photoInput" accept="image/*" class="file-input" style="display:none;">
+                </div>
+                <div id="previewContainer" class="preview-container" style="display:none;"></div>
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    <i class="fas fa-upload"></i> Subir Fotos
+                </button>
+            </form>
+        </div>
+        
+        <div class="gallery">
+            {% for photo in photos %}
+            <div class="photo-container">
+                <img 
+                    src="{{ url_for('uploaded_file', filename=photo.filename) }}" 
+                    alt="Foto subida"
+                    ondragstart="return false;"
+                    onselectstart="return false;"
+                    oncontextmenu="return false;"
+                >
+                <div class="watermark">{{ photo.upload_date|format_datetime }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
