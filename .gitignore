@@ -47,4 +47,9 @@ lib64/
 .env.*.local
 
 
-!uploads/.gitkeep
+uploads/**/*
+uploads/
+uploads/*/
+uploads/**/*.png
+
+photos_registry_*.json
