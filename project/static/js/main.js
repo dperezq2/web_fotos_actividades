@@ -105,7 +105,14 @@ document.addEventListener('copy', function(e) {
 
 document.addEventListener('contextmenu', function(e) {
     e.preventDefault();
-    alert('Las imágenes están protegidas contra copia');
+    Toastify({
+        text: "Las fotografías están protegidas contra copia",
+        duration: 3000,
+        gravity: "top", 
+        position: "right", 
+        backgroundColor: "linear-gradient(to right, #ff5f6d, #ffc371)",
+        stopOnFocus: true
+    }).showToast();
     return false;
 });
 
@@ -121,7 +128,7 @@ function createPhotoHTML(photo) {
                 onselectstart="return false;"
                 oncontextmenu="return false;"
             >
-            <div class="watermark">${formatDateTime(photo.upload_date)}</div>
+            
         </div>
     `;
 }
