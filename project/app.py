@@ -9,18 +9,9 @@ from utils import allowed_file, get_file_hash, load_photos_registry, save_photos
 
 app = Flask(__name__)
 
-# Configuración
-UPLOAD_FOLDER = 'uploads'
-PHOTOS_REGISTRY = 'photos_registry.json'
+# Configuración base
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-
-# Agregar esta variable global para trackear la última actualización
 last_update_timestamp = time.time()
-
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.template_filter('format_datetime')
 def format_datetime(value):
@@ -30,45 +21,20 @@ def format_datetime(value):
     except:
         return value
 
-# Agregar esta nueva ruta para los eventos SSE
-@app.route('/photo-updates')
-def photo_updates():
-    def generate():
-        global last_update_timestamp
-        previous_timestamp = last_update_timestamp
-        
-        while True:
-            # Verificar si hay nuevas fotos
-            current_photos = load_photos_registry()
-            if last_update_timestamp > previous_timestamp:
-                # Filtrar solo las fotos válidas
-                valid_photos = []
-                for photo in current_photos:
-                    if os.path.exists(os.path.join(UPLOAD_FOLDER, photo['filename'])):
-                        valid_photos.append(photo)
-                
-                # Ordenar por fecha de subida, más recientes primero
-                sorted_photos = sorted(valid_photos, key=lambda x: x['upload_date'], reverse=True)
-                
-                # Enviar los datos como evento SSE
-                data = json.dumps({
-                    'photos': sorted_photos
-                })
-                yield f"data: {data}\n\n"
-                
-                previous_timestamp = last_update_timestamp
-            
-            time.sleep(2)  # Esperar 2 segundos antes de la siguiente verificación
-    
-    return Response(generate(), mimetype='text/event-stream')
-
-
-# Modificar la función upload_file para actualizar el timestamp cuando se suben nuevas fotos
-@app.route('/', methods=['GET', 'POST'])
-def upload_file():
+def upload_file_with_activity(activity):
     global last_update_timestamp
     message = None
-    photos_registry = load_photos_registry()
+    
+    # Configuraciones específicas por actividad
+    UPLOAD_FOLDER = f'uploads/{activity}'
+    PHOTOS_REGISTRY = f'photos_registry_{activity}.json'
+    
+    # Crear carpeta si no existe
+    if not os.path.exists(UPLOAD_FOLDER):
+        os.makedirs(UPLOAD_FOLDER)
+    
+    # Cargar registro de fotos de la actividad
+    photos_registry = load_photos_registry(PHOTOS_REGISTRY)
     
     if request.method == 'POST':
         if 'photos' not in request.files:
@@ -89,7 +55,7 @@ def upload_file():
                         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                         filename = f"{timestamp}_{original_filename}"
                         
-                        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                        file_path = os.path.join(UPLOAD_FOLDER, filename)
                         file.save(file_path)
                         
                         photo_info = {
@@ -97,34 +63,76 @@ def upload_file():
                             'original_name': original_filename,
                             'upload_date': timestamp,
                             'file_path': file_path,
-                            'file_hash': file_hash
+                            'file_hash': file_hash,
+                            'activity': activity  # Añade esta línea
                         }
                         photos_registry.append(photo_info)
                         successful_uploads += 1
             
-                if successful_uploads > 0:
-                    save_photos_registry(photos_registry)
-                    last_update_timestamp = time.time()  # Actualizar timestamp
-                    message = {'type': 'success', 'text': f'¡{successful_uploads} foto(s) subida(s) exitosamente!'}
-                else:
-                    message = {'type': 'error', 'text': 'No se pudo subir ninguna foto'}
+            if successful_uploads > 0:
+                save_photos_registry(photos_registry, PHOTOS_REGISTRY)
+                last_update_timestamp = time.time()
+                message = {'type': 'success', 'text': f'¡{successful_uploads} foto(s) subida(s) exitosamente!'}
+            else:
+                message = {'type': 'error', 'text': 'No se pudo subir ninguna foto'}
 
-    valid_photos = []
-    for photo in photos_registry:
-        if os.path.exists(os.path.join(UPLOAD_FOLDER, photo['filename'])):
-            valid_photos.append(photo)
+    valid_photos = [
+        photo for photo in photos_registry 
+        if os.path.exists(os.path.join(UPLOAD_FOLDER, photo['filename']))
+    ]
     
-    if len(valid_photos) != len(photos_registry):
-        photos_registry = valid_photos
-        save_photos_registry(photos_registry)
-
     return render_template('index.html', 
                         message=message, 
-                        photos=sorted(photos_registry, key=lambda x: x['upload_date'], reverse=True))
+                        photos=sorted(valid_photos, key=lambda x: x['upload_date'], reverse=True))
 
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+@app.route('/cena-gerentes', methods=['GET', 'POST'])
+def upload_cena_gerentes():
+    return upload_file_with_activity('cena-gerentes')
+
+@app.route('/sesion-gerentes-rrhh', methods=['GET', 'POST'])
+def upload_sesion_gerentes_rrhh():
+    return upload_file_with_activity('sesion-gerentes-rrhh')
+
+@app.route('/convivio', methods=['GET', 'POST'])
+def upload_convivio():
+    return upload_file_with_activity('convivio')
+
+@app.route('/actividad-bananero', methods=['GET', 'POST'])
+def upload_actividad_bananero():
+    return upload_file_with_activity('actividad-bananero')
+
+@app.route('/photo-updates/<activity>')
+def photo_updates(activity):
+    def generate():
+        global last_update_timestamp
+        previous_timestamp = last_update_timestamp
+        PHOTOS_REGISTRY = f'photos_registry_{activity}.json'
+        UPLOAD_FOLDER = f'uploads/{activity}'
+        
+        while True:
+            current_photos = load_photos_registry(PHOTOS_REGISTRY)
+            if last_update_timestamp > previous_timestamp:
+                valid_photos = [
+                    photo for photo in current_photos 
+                    if os.path.exists(os.path.join(UPLOAD_FOLDER, photo['filename']))
+                ]
+                
+                sorted_photos = sorted(valid_photos, key=lambda x: x['upload_date'], reverse=True)
+                
+                data = json.dumps({
+                    'photos': sorted_photos
+                })
+                yield f"data: {data}\n\n"
+                
+                previous_timestamp = last_update_timestamp
+            
+            time.sleep(2)
+    
+    return Response(generate(), mimetype='text/event-stream')
+
+@app.route('/uploads/<activity>/<filename>')
+def uploaded_file(activity, filename):
+    return send_from_directory(f'uploads/{activity}', filename)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=3000, debug=True)

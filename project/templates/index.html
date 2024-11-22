@@ -18,7 +18,7 @@
         {% endif %}
         
         <div class="upload-section">
-            <form method="post" enctype="multipart/form-data" id="uploadForm">
+            <form method="post" enctype="multipart/form-data" id="uploadForm" action="{{ request.path }}">
                 <div class="file-input-container">
                     <label class="custom-file-upload gallery-btn" onclick="triggerFileInput('gallery')">
                         <i class="fas fa-images"></i> Seleccionar de Galería
@@ -39,7 +39,7 @@
             {% for photo in photos %}
             <div class="photo-container">
                 <img 
-                    src="{{ url_for('uploaded_file', filename=photo.filename) }}" 
+                src="{{ url_for('uploaded_file', activity=photo.activity, filename=photo.filename) }}"  
                     alt="Foto subida"
                     ondragstart="return false;"
                     onselectstart="return false;"
@@ -50,6 +50,9 @@
             {% endfor %}
         </div>
     </div>
+    <script>
+        const currentActivity = "{{ request.path.split('/')[-1] }}";
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>

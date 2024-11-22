@@ -4,6 +4,7 @@ const form = document.getElementById('uploadForm');
 const submitBtn = document.getElementById('submitBtn');
 
 function triggerFileInput(source) {
+    const photoInput = document.getElementById('photoInput');
     photoInput.removeAttribute('capture');
     if (source === 'camera') {
         photoInput.setAttribute('capture', 'camera');
@@ -15,48 +16,62 @@ function triggerFileInput(source) {
 photoInput.setAttribute('multiple', 'true');
 photoInput.setAttribute('name', 'photos');
 
-photoInput.addEventListener('change', function(evt) {
+photoInput.addEventListener('change', function (evt) {
     const files = evt.target.files;
-    
+
     if (files.length > 0) {
         previewContainer.innerHTML = '';
-        
+
         Array.from(files).forEach((file, index) => {
             const previewWrapper = document.createElement('div');
             previewWrapper.className = 'preview-wrapper';
-            
+
             const previewImg = document.createElement('img');
             previewImg.className = 'preview-img';
-            
+
             const removeBtn = document.createElement('button');
             removeBtn.className = 'remove-btn';
             removeBtn.innerHTML = '×';
-            removeBtn.onclick = function(e) {
+
+            // Asociar el índice del archivo al elemento
+            previewWrapper.dataset.index = index;
+
+            // Evento de eliminación
+            removeBtn.onclick = function (e) {
                 e.preventDefault();
                 previewWrapper.remove();
-                
+
                 const dt = new DataTransfer();
-                const remaining_files = Array.from(photoInput.files).filter((f, i) => i !== index);
-                remaining_files.forEach(file => dt.items.add(file));
+                const remainingFiles = Array.from(photoInput.files).filter(
+                    (f, i) => i !== Number(previewWrapper.dataset.index)
+                );
+                remainingFiles.forEach((file) => dt.items.add(file));
                 photoInput.files = dt.files;
-                
+
+                // Verificar si no quedan archivos
                 if (photoInput.files.length === 0) {
                     submitBtn.disabled = true;
                     previewContainer.style.display = 'none';
+                    console.log('Submit button disabled');
                 }
+
+                // Actualizar índices en el DOM para reflejar cambios
+                Array.from(previewContainer.children).forEach((child, newIndex) => {
+                    child.dataset.index = newIndex;
+                });
             };
-            
+
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 previewImg.src = e.target.result;
             };
             reader.readAsDataURL(file);
-            
+
             previewWrapper.appendChild(previewImg);
             previewWrapper.appendChild(removeBtn);
             previewContainer.appendChild(previewWrapper);
         });
-        
+
         previewContainer.style.display = 'flex';
         submitBtn.disabled = false;
     } else {
@@ -64,6 +79,7 @@ photoInput.addEventListener('change', function(evt) {
         submitBtn.disabled = true;
     }
 });
+
 
 form.addEventListener('submit', function(e) {
     if (!photoInput.files || photoInput.files.length === 0) {
@@ -122,7 +138,7 @@ function createPhotoHTML(photo) {
     return `
         <div class="photo-container">
             <img 
-                src="/uploads/${photo.filename}" 
+                src="/uploads/${currentActivity}/${photo.filename}" 
                 alt="Foto subida"
                 ondragstart="return false;"
                 onselectstart="return false;"
@@ -149,7 +165,8 @@ function formatDateTime(value) {
 }
 
 // Configurar SSE
-const evtSource = new EventSource('/photo-updates');
+const evtSource = new EventSource(`/photo-updates/${currentActivity}`);
+
 const gallery = document.querySelector('.gallery');
 
 evtSource.onmessage = function(event) {
