@@ -1,0 +1,98 @@
+/* index.css */
+
+/* Reiniciar estilos de body */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+}
+
+/* Aseguramos que el contenido de la página fluya */
+.container {
+    width: 100%;
+    max-width: 600px;
+    margin: 20px auto; /* Espaciado automático en los lados */
+}
+
+.sorteo-card {
+    height: 70vh;
+    align-content: center;
+}
+
+/* Encabezado principal fijo en la parte superior */
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f5f5f5;
+    padding: 15px 10px;
+    border-bottom: 2px solid #ddd;
+    z-index: 1000; /* Para asegurarnos de que esté sobre el contenido */
+}
+
+.header .logo {
+    height: 50px; /* Tamaño pequeño del logo */
+    margin-left: 15px;
+    margin-right: 15px;
+}
+
+.header .event-title {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #333;
+    margin: 0;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+/* Ajustamos el contenido principal para que no se superponga con el header */
+.container {
+    margin-top: 100px; /* Espacio suficiente debajo del header */
+}
+
+/* Tarjeta del sorteo */
+.sorteo-card {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+/* Input de archivo */
+.file-input-wrapper {
+    margin-bottom: 20px;
+}
+
+.file-input {
+    display: none;
+}
+
+.file-label {
+    display: inline-block;
+    padding: 10px;
+    background-color: #4CAF50;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+/* Botón de sorteo */
+.btn-sorteo {
+    background-color: #FF9800;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.btn-sorteo:disabled {
+    background-color: #ddd;
+    cursor: not-allowed;
+}

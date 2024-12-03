@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Resultado del Sorteo</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/png">
+    <!-- FontAwesome para los íconos -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/result.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/loader2.css') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <img src="{{ url_for('static', filename='img/logo_PB.jpg') }}" alt="Logo Palo Blanco" class="logo">
+        <img src="{{ url_for('static', filename='img/logo_highland.png') }}" alt="Logo Highland" class="logo">
+        <h1 class="event-title">Convivio Navideño 2024</h1>
+        <img src="{{ url_for('static', filename='img/logo_banamar.png') }}" alt="Logo Banamar" class="logo">
+        <img src="{{ url_for('static', filename='img/logo_highland2.png') }}" alt="Logo Highland" class="logo">
+    </header>
+
+    <!-- Contenedor principal -->
+    <div class="container">
+        <!-- Loader Container -->
+        <div class="loader-container" id="loader-container">
+            <img src="{{ url_for('static', filename='img/ruleta.gif') }}" alt="Ruleta girando" class="spinner-gif">
+            <p>Eligiendo nuevo ganador al azar...</p>
+        </div>
+
+        <!-- Tarjeta del ganador -->
+        <div class="result-card" id="result-card">
+            <h1>🎊 ¡Felicidades al ganador! 🎊</h1>
+            <h2><span class="winner-name">{{ winner_name }}</span></h2>
+            
+            {% if winner_photo %}
+                <img src="{{ winner_photo }}" alt="Foto del ganador" class="winner-photo">
+            {% else %}
+                <p>No se dispone de la foto del ganador.</p>
+            {% endif %}
+            
+            <p>Total de participantes: {{ total_participants }}</p>
+        </div>
+
+        <!-- Contenedor para los botones -->
+        <div class="button-container">
+            <a href="{{ url_for('index') }}" class="btn-back">
+                <i class="fas fa-arrow-left"></i> Realizar un nuevo sorteo
+            </a>
+            <form action="{{ url_for('result') }}" method="POST" id="redraw-form">
+                <button type="submit" class="btn-sorteo" id="redraw-button">
+                    <i class="fas fa-sync-alt"></i> Sortear nuevamente (excluyendo al ganador actual)
+                </button>
+            </form>
+        </div>
+    </div>
+    
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

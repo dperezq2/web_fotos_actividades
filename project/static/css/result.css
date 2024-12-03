@@ -1,0 +1,124 @@
+/* General */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column; /* Estructura vertical para incluir el header */
+    align-items: center;
+}
+
+/* Encabezado (igual al index.css) */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f5f5f5;
+    padding: 15px 10px;
+    border-bottom: 2px solid #ddd;
+    width: 100%;
+    max-width: 100%; /* Evitar el desbordamiento horizontal */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+    box-sizing: border-box; /* Asegura que el padding y borde no sumen al ancho */
+}
+
+
+.header .logo {
+    height: 50px; /* Tamaño pequeño del logo */
+    margin-left: 15px;
+    margin-right: 15px;
+}
+
+.header .event-title {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #333;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+/* Contenedor principal */
+.container {
+    width: 100%;
+    max-width: 900px; /* Ajustar el ancho de la tarjeta */
+    margin: 0 auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Espaciado entre elementos */
+}
+
+/* Tarjeta del ganador */
+.result-card {
+    background-color: #fff;
+    padding: 15px;
+    height: 55vh;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    align-content: center;
+}
+
+.winner-name {
+    color: #4CAF50;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.winner-photo {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    /*margin: 15px auto;*/
+}
+
+.result-card p {
+    font-size: 14px;
+}
+
+/* Botones */
+.button-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+}
+
+.btn-back, .btn-sorteo {
+    width: 100%;
+    padding: 8px 0;
+    border-radius: 8px;
+    font-size: 16px;
+    text-decoration: none;
+    text-align: center;
+    box-sizing: border-box;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+}
+
+.btn-back {
+    background-color: #2196F3;
+    color: white;
+}
+
+.btn-back:hover {
+    background-color: #1976D2;
+    transform: translateY(-2px);
+}
+
+.btn-sorteo {
+    background-color: #FF5722;
+    color: white;
+}
+
+.btn-sorteo:hover {
+    background-color: #FF7043;
+    transform: translateY(-2px);
+}
+
+
+

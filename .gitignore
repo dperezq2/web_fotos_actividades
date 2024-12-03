@@ -53,3 +53,8 @@ uploads/*/
 uploads/**/*.png
 
 photos_registry_*.json
+
+
+static/uploads/
+
+.flask_session/

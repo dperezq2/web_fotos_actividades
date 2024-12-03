@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sorteo Palo Blanco 2024</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/png">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/loader.css') }}">
+</head>
+<body>
+    <!-- Encabezado del evento -->
+    <header class="header">
+        <img src="{{ url_for('static', filename='img/logo_PB.jpg') }}" alt="Logo Palo Blanco" class="logo">
+        <img src="{{ url_for('static', filename='img/logo_highland.png') }}" alt="Logo Highland" class="logo">
+        <h1 class="event-title">Convivio Navideño 2024</h1>
+        <img src="{{ url_for('static', filename='img/logo_banamar.png') }}" alt="Logo Banamar" class="logo">
+        <img src="{{ url_for('static', filename='img/logo_highland2.png') }}" alt="Logo Highland" class="logo">
+    </header>
+
+    <div class="container">
+        <div class="sorteo-card">
+            <h1>Sorteo de Participantes</h1>
+            <form method="POST" enctype="multipart/form-data" id="upload-form">
+                <div class="file-input-wrapper">
+                    <input type="file" name="file" id="file-upload" accept=".csv,.xlsx,.xls" class="file-input">
+                    <label for="file-upload" class="file-label">
+                        <span class="file-icon">📄</span>
+                        <span class="file-text">Adjuntar archivo</span>
+                    </label>
+                    <p id="file-name" class="file-name">Ningún archivo seleccionado</p>
+                </div>
+                <button type="submit" class="btn-sorteo" id="submit-button" disabled>Realizar Sorteo</button>
+            </form>
+        
+        </div>
+        <!-- Loader para mostrar mientras se procesa el sorteo -->
+        <div class="loader-container">
+            <img src="{{ url_for('static', filename='img/ruleta.gif') }}" alt="Ruleta girando" class="spinner-gif">
+            <h2>Determinando ganador al azar...</h2>
+        </div>
+    </div>
+
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
