@@ -1,25 +1,18 @@
-from flask import Flask, request, send_from_directory, render_template, jsonify
-from flask import Response
+from flask import Flask, request, send_from_directory, render_template, jsonify, Response, url_for, redirect, session
+from flask_session import Session
 import time
 import os
 from datetime import datetime
 import json
 from werkzeug.utils import secure_filename
+import requests
+
 from utilidades import allowed_file, get_file_hash, load_photos_registry, save_photos_registry, is_duplicate
-from utils.data_loader import validate_photo_path
-
-
-from flask import Flask, render_template, request, redirect, url_for, session
-from flask_session import Session  # Importamos la extensión
-import os
-from werkzeug.utils import secure_filename
-
-from utils.data_loader import load_participants
+from utils.data_loader import validate_photo_path, load_participants
 from utils.raffle_logic import perform_raffle
 
-
-
 app = Flask(__name__)
+
 
 
 # Configurar el almacenamiento de sesiones en el servidor
@@ -33,6 +26,29 @@ Session(app)  # Inicializar Flask-Session
 
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB máximo
+
+
+# NUEVO: Proxy de imágenes
+@app.route('/image-proxy')
+def proxy_image():
+    # Obtener la URL de la imagen desde los parámetros de la solicitud
+    image_url = request.args.get('url')
+    
+    try:
+        # Descargar la imagen
+        response = requests.get(image_url, timeout=10)
+        
+        # Verificar que la descarga fue exitosa
+        if response.status_code == 200:
+            # Devolver la imagen con el tipo MIME correcto
+            return Response(response.content, mimetype=response.headers.get('content-type', 'image/jpeg'))
+        else:
+            # Si la descarga falla, devolver una imagen por defecto o un error
+            return Response('Error al cargar la imagen', status=404)
+    
+    except requests.RequestException:
+        # Manejar errores de solicitud (timeout, conexión, etc.)
+        return Response('Error al descargar la imagen', status=500)
 
 
 @app.route('/sorteo', methods=['GET', 'POST'])
@@ -76,7 +92,7 @@ def result():
     total_participants = session.get('total_participants')
 
     if not winner or not total_participants:
-        return redirect(url_for('index_sorteo'))  # Si no hay datos, redirige al index
+        return redirect(url_for('index_sorteo'))
 
     # Si la solicitud es POST, realizar un nuevo sorteo excluyendo al ganador
     if request.method == 'POST':
@@ -110,7 +126,10 @@ def result():
     # Validar la foto del ganador
     if winner_photo_url:
         is_valid_photo = validate_photo_path(winner_photo_url)
-        if not is_valid_photo:
+        if is_valid_photo:
+            # MODIFICACIÓN: Usar el proxy de imágenes
+            winner_photo_url = url_for('proxy_image', url=winner_photo_url)
+        else:
             winner_photo_url = None  # Si la foto no es válida, no la mostramos
 
     return render_template('result.html', winner_name=winner_name, winner_photo=winner_photo_url, total_participants=total_participants)

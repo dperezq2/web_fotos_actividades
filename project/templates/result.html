@@ -34,7 +34,10 @@
             <h2><span class="winner-name">{{ winner_name }}</span></h2>
             
             {% if winner_photo %}
-                <img src="{{ winner_photo }}" alt="Foto del ganador" class="winner-photo">
+                <div class="winner-photo-container">
+                    <img src="{{ winner_photo }}" alt="Foto del ganador" class="winner-photo" onerror="this.style.display='none'; document.getElementById('no-photo').style.display='block';">
+                    <p id="no-photo" style="display:none; color: red;">No se pudo cargar la foto del ganador.</p>
+                </div>
             {% else %}
                 <p>No se dispone de la foto del ganador.</p>
             {% endif %}
@@ -55,7 +58,6 @@
         </div>
     </div>
     
-
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
