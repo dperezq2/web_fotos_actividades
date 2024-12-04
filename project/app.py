@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 from werkzeug.utils import secure_filename
 from utilidades import allowed_file, get_file_hash, load_photos_registry, save_photos_registry, is_duplicate
+from utils.data_loader import validate_photo_path
 
 
 from flask import Flask, render_template, request, redirect, url_for, session
@@ -67,6 +68,7 @@ def index():
     
     return render_template('index_sorteo.html')
 
+
 @app.route('/result', methods=['GET', 'POST'])
 def result():
     winner = session.get('winner')
@@ -103,9 +105,16 @@ def result():
 
     # Extraer la información del ganador
     winner_name = winner.get('Empleado', 'No disponible')
-    winner_photo = winner.get('PathFotografia', '')
+    winner_photo_url = winner.get('PathFotografia', '')
 
-    return render_template('result.html', winner_name=winner_name, winner_photo=winner_photo, total_participants=total_participants)
+    # Validar la foto del ganador
+    if winner_photo_url:
+        is_valid_photo = validate_photo_path(winner_photo_url)
+        if not is_valid_photo:
+            winner_photo_url = None  # Si la foto no es válida, no la mostramos
+
+    return render_template('result.html', winner_name=winner_name, winner_photo=winner_photo_url, total_participants=total_participants)
+
 
 
 

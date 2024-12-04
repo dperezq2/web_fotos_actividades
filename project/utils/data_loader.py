@@ -2,6 +2,7 @@ import pandas as pd
 import requests
 from concurrent.futures import ThreadPoolExecutor
 
+# Función para validar el URL de la foto (solo cuando sea necesario)
 def validate_photo_path(url):
     try:
         response = requests.head(url, timeout=5)
@@ -27,24 +28,13 @@ def load_participants(filepath):
         # Filtrar los participantes no excluidos
         valid_participants = df[df['Excluido'] == False]
         
-        # Obtener las URLs de las fotos para validación
-        urls = valid_participants['PathFotografia'].tolist()
-        
-        # Validar las URLs de las fotos concurrentemente
-        with ThreadPoolExecutor() as executor:
-            valid_flags = list(executor.map(validate_photo_path, urls))
-        
-        # Agregar la validación de fotos al DataFrame
-        valid_participants['IsValid'] = valid_flags
-        
-        # Crear la lista de participantes con foto válida o None
+        # Crear la lista de participantes sin la validación de las fotos
         participants = []
         for _, row in valid_participants.iterrows():
             participant = {
                 'Empleado': row['Empleado'],
                 'CUE': row['CUE'],  # Agregar el CUE del participante
-                'IsValid': row['IsValid'],
-                'PathFotografia': row['PathFotografia'] if row['IsValid'] else None
+                'PathFotografia': row['PathFotografia']
             }
             participants.append(participant)
         
@@ -56,6 +46,11 @@ def load_participants(filepath):
     except Exception as e:
         print(f"Error de carga: {e}")
         return []
+
+# Función para validar la foto del ganador
+def validate_winner_photo(winner_photo_url):
+    # Validar la foto del ganador solo
+    return validate_photo_path(winner_photo_url)
 
 # Función para actualizar el archivo CSV y marcar un ganador como excluido
 def update_participants_with_winner(filepath, winner_cue):
