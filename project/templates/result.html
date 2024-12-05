@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Resultado del Sorteo</title>
     <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/png">
-    <!-- FontAwesome para los íconos -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/result.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/loader2.css') }}">
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 </head>
 <body>
-    <!-- Header -->
     <header class="header">
         <img src="{{ url_for('static', filename='img/logo_PB.jpg') }}" alt="Logo Palo Blanco" class="logo">
         <img src="{{ url_for('static', filename='img/logo_COPEPRIMA.png') }}" alt="Logo Copeprima" class="logo">
@@ -20,18 +19,15 @@
         <img src="{{ url_for('static', filename='img/logo_highland.png') }}" alt="Logo Highland" class="logo">
     </header>
 
-    <!-- Contenedor principal -->
     <div class="container">
-        <!-- Loader Container -->
         <div class="loader-container" id="loader-container">
             <img src="{{ url_for('static', filename='img/ruleta.gif') }}" alt="Ruleta girando" class="spinner-gif">
             <p>Eligiendo nuevo ganador al azar...</p>
         </div>
 
-        <!-- Tarjeta del ganador -->
         <div class="result-card" id="result-card">
             <h1>🎊 ¡Felicidades al ganador! 🎊</h1>
-            <h2><span class="winner-name">{{ winner_name }}</span></h2>
+            <h2><span class="winner-name">{{ winner['Empleado'] }}</span></h2>
             
             {% if winner_photo %}
                 <div class="winner-photo-container">
@@ -45,7 +41,6 @@
             <p>Total de participantes: {{ total_participants }}</p>
         </div>
 
-        <!-- Contenedor para los botones -->
         <div class="button-container">
             <a href="{{ url_for('index') }}" class="btn-back">
                 <i class="fas fa-arrow-left"></i> Realizar un nuevo sorteo
@@ -57,6 +52,25 @@
             </form>
         </div>
     </div>
+    
+    <script>
+    window.onload = function() {
+        // Delay to ensure all content is loaded
+        setTimeout(() => {
+            html2canvas(document.getElementById('result-card'), {
+                scale: 2, // Increase resolution
+                useCORS: true // Handle cross-origin images
+            }).then(canvas => {
+                canvas.toBlob(function(blob) {
+                    const link = document.createElement('a');
+                    link.download = '{{ original_filename }}_ganador_{{ winner_count }}.png';
+                    link.href = URL.createObjectURL(blob);
+                    link.click();
+                });
+            });
+        }, 500);
+    };
+    </script>
     
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>

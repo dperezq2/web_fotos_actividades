@@ -53,6 +53,9 @@ def proxy_image():
 
 @app.route('/sorteo', methods=['GET', 'POST'])
 def index():
+    # Clear previous session data when starting a new raffle
+    session.clear()
+
     if request.method == 'POST':
         # Manejo de subida de archivo
         if 'file' not in request.files:
@@ -74,11 +77,15 @@ def index():
             # Realizar sorteo
             winner = perform_raffle(participants)
             
+            # Store the original filename without extension
+            original_filename = os.path.splitext(filename)[0]
+
             # Guardar el ganador y otros datos en la sesión
             session['winner'] = winner
             session['total_participants'] = len(participants)
             session['participants'] = participants  # Guardamos la lista de participantes
-            
+            session['original_filename'] = original_filename
+
             # Redirigir a la página de resultados
             return redirect(url_for('result'))
     
@@ -88,51 +95,56 @@ def index():
 @app.route('/result', methods=['GET', 'POST'])
 def result():
     winner = session.get('winner')
-    participants = session.get('participants')
-    total_participants = session.get('total_participants')
+    participants = session.get('participants', [])
+    total_participants = session.get('total_participants', 0)
+    original_filename = session.get('original_filename', 'ganador')
+    previous_winners = session.get('previous_winners', [])
+    winner_count = len(previous_winners) + 1
 
     if not winner or not total_participants:
-        return redirect(url_for('index_sorteo'))
+        return redirect(url_for('index'))
 
-    # Si la solicitud es POST, realizar un nuevo sorteo excluyendo al ganador
     if request.method == 'POST':
         if participants:
-            # Excluir al ganador de la lista de participantes
+            # Exclude the previous winner from participants
             participants = [p for p in participants if p['CUE'] != winner['CUE']]
             
-            # Actualizar el total de participantes después de excluir al ganador
+            # Update total participants
             total_participants = len(participants)
             
-            # Realizar el sorteo nuevamente
+            # Perform a new raffle
             winner = perform_raffle(participants)
+            
+            # Update session variables
             session['winner'] = winner
-
-            # Guardar el ganador actual en la lista de ganadores anteriores
-            previous_winners = session.get('previous_winners', [])
-            previous_winners.insert(0, winner)  # Insertar el nuevo ganador al inicio
-            session['previous_winners'] = previous_winners[:5]  # Mantener solo los 5 más recientes
-
-            # Guardar los participantes actualizados y el total de participantes
             session['participants'] = participants
             session['total_participants'] = total_participants
 
-            # Redirigir a la misma página para mostrar el nuevo ganador y el contador actualizado
+            # Track previous winners
+            previous_winners.insert(0, winner)
+            session['previous_winners'] = previous_winners[:5]
+
             return redirect(url_for('result'))
 
-    # Extraer la información del ganador
+    # Prepare winner information
     winner_name = winner.get('Empleado', 'No disponible')
     winner_photo_url = winner.get('PathFotografia', '')
 
-    # Validar la foto del ganador
+    # Validate and proxy the winner's photo
     if winner_photo_url:
         is_valid_photo = validate_photo_path(winner_photo_url)
         if is_valid_photo:
-            # MODIFICACIÓN: Usar el proxy de imágenes
             winner_photo_url = url_for('proxy_image', url=winner_photo_url)
         else:
-            winner_photo_url = None  # Si la foto no es válida, no la mostramos
+            winner_photo_url = None
 
-    return render_template('result.html', winner_name=winner_name, winner_photo=winner_photo_url, total_participants=total_participants)
+    return render_template('result.html', 
+                            winner=winner, 
+                            winner_name=winner_name, 
+                            winner_photo=winner_photo_url, 
+                            total_participants=total_participants, 
+                            original_filename=original_filename,
+                            winner_count=winner_count)
 
 
 
