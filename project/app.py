@@ -24,7 +24,7 @@ app.config['SESSION_FILE_DIR'] = './.flask_session'  # Carpeta para almacenar la
 app.secret_key = os.urandom(24)  # Necesario para las sesiones
 Session(app)  # Inicializar Flask-Session
 
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
+app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB máximo
 
 
