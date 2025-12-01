@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container my-5">
+    <!-- Encabezado del Sorteo -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="{{ url_for('historial_sorteos') }}">Historial</a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        Sorteo #{{ sorteo.id }}
+                    </li>
+                </ol>
+            </nav>
+            
+            <div class="card border-primary mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="bi bi-trophy-fill"></i> {{ sorteo.nombre_archivo }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <p><strong>ID del Sorteo:</strong></p>
+                            <p class="text-muted">#{{ sorteo.id }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p><strong>Fecha:</strong></p>
+                            <p class="text-muted">{{ sorteo.fecha_sorteo[:16].replace('T', ' ') }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p><strong>Participantes:</strong></p>
+                            <p class="text-muted">{{ sorteo.total_participantes }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p><strong>Ganadores:</strong></p>
+                            <p class="text-muted">{{ sorteo.num_ganadores }}</p>
+                        </div>
+                    </div>
+                    {% if sorteo.descripcion %}
+                    <hr>
+                    <p><strong>Descripción:</strong></p>
+                    <p class="text-muted">{{ sorteo.descripcion }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Ganadores -->
+    <div class="row">
+        <div class="col-md-12">
+            <h4 class="mb-3">
+                <i class="bi bi-star-fill text-warning"></i> Ganadores
+            </h4>
+            
+            {% if ganadores %}
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for ganador in ganadores %}
+                <div class="col">
+                    <div class="card h-100 shadow-sm winner-card">
+                        <!-- Número de ganador -->
+                        <div class="position-absolute top-0 start-0 m-2">
+                            <span class="badge bg-warning text-dark fs-5">
+                                #{{ ganador.numero_ganador }}
+                            </span>
+                        </div>
+                        
+                        <!-- Foto del ganador -->
+                        <div class="text-center p-3" style="background-color: #f8f9fa;">
+                            <div>
+                            <img src="{{ url_for('static', filename='img/trofeo_ganador.png') }}"
+                                alt="{{ ganador.nombre_empleado }}" class="rounded-circle winner-photo">
+                        </div>
+                            
+                            <!--{% if ganador.path_fotografia %}
+                            <img src="{{ url_for('proxy_image', image_url=ganador.path_fotografia) }}" 
+                                 class="rounded-circle winner-photo"
+                                 alt="{{ ganador.nombre_empleado }}"
+                                 onerror="this.src='{{ url_for('static', filename='img/placeholder.png') }}'">
+                            {% else %}
+                            <img src="{{ url_for('static', filename='img/placeholder.png') }}" 
+                                 class="rounded-circle winner-photo"
+                                 alt="Sin foto">
+                            {% endif %}--->
+                        </div>
+                        
+                        <!-- Información del ganador -->
+                        <div class="card-body">
+                            <h5 class="card-title text-center">{{ ganador.nombre_empleado }}</h5>
+                            <p class="text-center text-muted mb-2">
+                                <small><strong>CUE:</strong> {{ ganador.cue }}</small>
+                            </p>
+                            
+                            {% if ganador.datos_adicionales %}
+                            <hr>
+                            <div class="additional-info">
+                                {% for key, value in ganador.datos_adicionales.items() %}
+                                <p class="mb-1">
+                                    <small><strong>{{ key }}:</strong> {{ value }}</small>
+                                </p>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i> 
+                No se encontraron ganadores para este sorteo.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Botones de Acción -->
+    <div class="row mt-4">
+        <div class="col-md-12 d-flex justify-content-between">
+            <a href="{{ url_for('historial_sorteos') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Volver al Historial
+            </a>
+            
+            <div>
+                <a href="{{ url_for('descargar_pdf_sorteo', sorteo_id=sorteo.id) }}" 
+                                    class="btn btn-sm btn-danger" target="_blank">
+                                        <i class="bi bi-file-earmark-pdf"></i> Descargar PDF
+                                </a>
+                <!--
+                <form method="POST" 
+                      action="{{ url_for('eliminar_sorteo', sorteo_id=sorteo.id) }}" 
+                      style="display: inline;"
+                      onsubmit="return confirm('¿Estás seguro de eliminar este sorteo? Esta acción no se puede deshacer.');">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Eliminar Sorteo
+                    </button>
+                </form>-->
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .winner-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .winner-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    }
+    
+    .winner-photo {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border: 4px solid #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .additional-info {
+        font-size: 0.9rem;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    
+    .card-title {
+        color: #2c8503;
+        font-weight: bold;
+    }
+    
+    /* Estilos para impresión */
+    @media print {
+        .btn, nav, .breadcrumb {
+            display: none;
+        }
+        
+        .winner-card {
+            page-break-inside: avoid;
+            box-shadow: none !important;
+        }
+    }
+</style>
+{% endblock %}

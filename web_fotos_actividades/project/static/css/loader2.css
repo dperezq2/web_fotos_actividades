@@ -1,0 +1,27 @@
+/* Loader */
+.loader-container {
+    display: none; /* Por defecto está oculto */
+    width: 100%; /* Ocupa todo el ancho disponible */
+    height: 55vh;
+    background-color: #ffffff;
+    flex-direction: column; /* Para alinear verticalmente */
+    align-items: center; /* Centrar horizontalmente */
+    justify-content: center; /* Centrar verticalmente */
+    margin-top: 20px; /* Espaciado debajo de la tarjeta del sorteo */
+}
+
+.loader-container.active {
+    display: flex; /* Cambia a flex para mostrar */
+}
+
+.spinner-gif {
+    width: 200px; /* Ajusta el tamaño según tu gif */
+    height: auto;
+    margin: 0 auto; /* Centrar el gif */
+}
+
+.loader-container h2 {
+    margin-top: 15px;
+    font-size: 1.2em;
+    color: #333;
+}

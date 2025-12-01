@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="text-center">
+    <h2>🎊 ¡Ganadores del Sorteo! 🎊</h2>
+    <div class="container-xl mt-4 mb-5">
+        <div class="row">
+            {% for winner in winners %}
+            {% set image_path = winner.PathFotografia.strip() if winner.PathFotografia else '' %}
+            {% set badge_class =
+            'bg-orange text-dark' if loop.index == 1 else
+            'bg-orange' if loop.index == 2 else
+            'bg-orange text-white' if loop.index == 3 else
+            'bg-primary text-white'
+            %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="row g-0 align-items-center">
+                        <div class="col-4 text-center p-2 position-relative">
+                            <!-- Número del ganador superpuesto -->
+                            {% set badge_text =
+                            '🥇' if loop.index == 1 else
+                            '🥈' if loop.index == 2 else
+                            '🥉' if loop.index == 3 else
+                            loop.index
+                            %}
+
+                            <div class="position-absolute top-0 start-0 m-2 rounded-circle {{ badge_class }} d-flex justify-content-center align-items-center shadow"
+                                style="width: 50px; height: 50px; font-weight: bold; font-size: 1.5rem;">
+                                {{ badge_text }}
+                            </div>
+
+
+                            <img src="{{ url_for('static', filename='img/trofeo_ganador.png') }}"
+                                alt="{{ winner.Empleado }}" class="img-fluid rounded"
+                                style="max-height: 150px; object-fit: contain;">
+
+                        </div>
+                        <div class="col-8">
+                            <div class="card-body">
+                                <h5 class="card-title mb-1">{{ winner.Empleado }}</h5>
+                                <p class="card-text text-muted">CUE: {{ winner.CUE }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="mt-5 mb-5 d-flex flex-wrap justify-content-center gap-3">
+        <a href="{{ url_for('select_winners') }}" class="btn btn-primary btn-lg shadow">
+            <i class="bi bi-shuffle me-2"></i> Sortear nuevamente
+        </a>
+        <!--<a href="{{ url_for('reset_sorteo') }}" class="btn btn-secondary btn-lg shadow">
+            <i class="bi bi-arrow-clockwise me-2"></i> Reiniciar sorteo
+        </a>-->
+        <!--<a href="{{ url_for('go_to_upload') }}" class="btn btn-danger btn-lg shadow">
+            <i class="bi bi-upload me-2"></i> Subir nuevo archivo
+        </a>-->
+    </div>
+</div>
+{% endblock %}

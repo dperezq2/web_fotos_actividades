@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card p-4 text-center shadow-lg rounded-3 bg-light position-relative mx-auto my-5" style="max-width:900px;">
+
+    {% if has_file %}
+    <!-- Botón para volver / anular sorteo -->
+    <form method="POST" action="{{ url_for('reset_sorteo_principal') }}" class="position-absolute top-0 start-0 m-3">
+        <button type="submit" class="btn btn-danger btn-lg shadow-sm">
+            <i class="bi bi-arrow-left me-2"></i> Volver
+        </button>
+    </form>
+    {% endif %}
+
+    <!-- Título principal -->
+    <h2 class="mb-2 fw-bold">
+        {{ 'Subir nuevo archivo CSV' if not has_file else 'Seleccionar número de ganadores' }}
+    </h2>
+    <p class="text-muted mb-4">
+        {{ 'Asegúrate de que tu archivo tenga las columnas correctas' if not has_file else 'Elige cuántos empleados serán ganadores' }}
+    </p>
+
+    {% if not has_file %}
+    <!-- Formulario de carga -->
+    <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_file') }}">
+        <div class="mb-3">
+            <label for="file" class="form-label fw-semibold">Selecciona el archivo CSV:</label>
+            <input type="file" class="form-control" id="file" name="file" accept=".csv" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg w-100 shadow-sm">
+            <i class="bi bi-upload me-2"></i> Cargar archivo
+        </button>
+    </form>
+
+    {% else %}
+    <!-- Selección de número de ganadores -->
+    <form method="POST" action="{{ url_for('select_winners') }}">
+        <p class="mb-3 fw-semibold">Selecciona cuántos ganadores deseas sortear:</p>
+        <div class="d-flex justify-content-center flex-wrap gap-3">
+            <button type="submit" name="num_winners" value="1" class="btn btn-success btn-lg shadow-sm">
+                1 🏆
+            </button>
+            <button type="submit" name="num_winners" value="2" class="btn btn-info btn-lg shadow-sm">
+                2 🎊
+            </button>
+            <button type="submit" name="num_winners" value="3" class="btn btn-warning btn-lg shadow-sm">
+                3 🎯
+            </button>
+            <button type="submit" name="num_winners" value="4" class="btn btn-success btn-lg shadow-sm">
+                4 🏆
+            </button>
+            <button type="submit" name="num_winners" value="5" class="btn btn-warning btn-lg shadow-sm">
+                5 🎯
+            </button>
+            <button type="submit" name="num_winners" value="10" class="btn btn-info btn-lg shadow-sm text-white">
+                10 🎉
+            </button>
+            <button type="submit" name="num_winners" value="15" class="btn btn-danger btn-lg shadow-sm">
+                15 🎊
+            </button>
+        </div>
+    </form>
+    {% endif %}
+
+</div>
+
+<!-- Estilos adicionales -->
+<style>
+    /* Botones de ganadores */
+    .btn-success, .btn-warning, .btn-info, .btn-danger, .btn-primary {
+        transition: all 0.3s ease-in-out;
+    }
+
+    .btn-success:hover, .btn-warning:hover, .btn-info:hover, .btn-danger:hover, .btn-primary:hover {
+        transform: scale(1.03);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+
+    /* Espaciado entre botones */
+    .gap-3 {
+        gap: 1rem;
+    }
+
+    /* Responsive para móviles */
+    @media (max-width: 576px) {
+        .btn-lg {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+        .position-absolute {
+            position: relative !important;
+            top: auto !important;
+            left: auto !important;
+            margin-bottom: 1rem;
+        }
+    }
+</style>
+{% endblock %}

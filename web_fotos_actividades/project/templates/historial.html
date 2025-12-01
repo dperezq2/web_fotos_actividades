@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2 class="text-center mb-4">
+                <i class="bi bi-clock-history"></i> Historial de Sorteos
+            </h2>
+        </div>
+    </div>
+
+    <!-- Estadísticas Generales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center border-primary">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">
+                        <i class="bi bi-trophy"></i> Total Sorteos
+                    </h5>
+                    <p class="display-4">{{ estadisticas.total_sorteos }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <h5 class="card-title text-success">
+                        <i class="bi bi-people"></i> Total Ganadores
+                    </h5>
+                    <p class="display-4">{{ estadisticas.total_ganadores }}</p>
+                    <small class="text-muted">Actuales</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <h5 class="card-title text-info">
+                        <i class="bi bi-calendar-event"></i> Último Sorteo
+                    </h5>
+                    {% if estadisticas.ultimo_sorteo %}
+                    <p class="h6">{{ estadisticas.ultimo_sorteo.nombre_archivo }}</p>
+                    <small class="text-muted">
+                        {{ estadisticas.ultimo_sorteo.fecha_sorteo[:10] }}
+                    </small>
+                    {% else %}
+                    <p class="text-muted">Sin sorteos</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">
+                        <i class="bi bi-star-fill"></i> Más Victorias
+                    </h5>
+                    {% if estadisticas.empleado_mas_victorias %}
+                    <p class="h6">{{ estadisticas.empleado_mas_victorias.nombre_empleado[:20] }}</p>
+                    <small class="text-muted">
+                        {{ estadisticas.empleado_mas_victorias.victorias }} 
+                        {% if estadisticas.empleado_mas_victorias.victorias == 1 %}victoria{% else %}victorias{% endif %}
+                    </small>
+                    {% else %}
+                    <p class="text-muted">N/A</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botón para nuevo sorteo -->
+    <div class="row mb-3">
+        <div class="col-md-12 text-end">
+            <a href="{{ url_for('upload_file') }}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Nuevo Sorteo
+            </a>
+        </div>
+    </div>
+
+    <!-- Lista de Sorteos -->
+    <div class="row">
+        <div class="col-md-12">
+            {% if sorteos %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Nombre del Archivo</th>
+                            <th>Fecha del Sorteo</th>
+                            <th>Participantes</th>
+                            <th>Ganadores</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sorteo in sorteos %}
+                        <tr>
+                            <td>{{ sorteo.id }}</td>
+                            <td>
+                                <strong>{{ sorteo.nombre_archivo }}</strong>
+                                {% if sorteo.descripcion %}
+                                <br><small class="text-muted">{{ sorteo.descripcion }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ sorteo.fecha_sorteo[:16].replace('T', ' ') }}
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ sorteo.total_participantes }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">{{ sorteo.num_ganadores }}</span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('detalle_sorteo', sorteo_id=sorteo.id) }}" 
+                                   class="btn btn-sm btn-primary">
+                                    <i class="bi bi-eye"></i> Ver Ganadores
+                                </a>
+                                <form method="POST" 
+                                      action="{{ url_for('eliminar_sorteo', sorteo_id=sorteo.id) }}" 
+                                      style="display: inline;"
+                                      onsubmit="return confirm('¿Estás seguro de eliminar este sorteo? Esta acción no se puede deshacer.');">
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="bi bi-trash"></i> Eliminar
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle"></i> 
+                No hay sorteos registrados aún. 
+                <a href="{{ url_for('upload_file') }}" class="alert-link">Realiza tu primer sorteo aquí</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .table {
+        background-color: white;
+    }
+    
+    .display-4 {
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
