@@ -1,0 +1,7 @@
+# Scripts y configuraciones que se ejecutan en Linux (contenedor/servidor):
+# siempre con saltos de línea LF, aunque se editen en Windows.
+*.sh    text eol=lf
+*.conf  text eol=lf
+Dockerfile text eol=lf
+*.yml   text eol=lf
+*.sql   text eol=lf

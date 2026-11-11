@@ -21,6 +21,8 @@ services:
       - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
       - SECRET_KEY=${SECRET_KEY}
+      - DOMAIN=${DOMAIN:-actividades.paloblancofreshfoods.com.gt}
+      - CERTBOT_EMAIL=${CERTBOT_EMAIL:-admin@paloblancofreshfoods.com.gt}
     depends_on:
       mysql:
         condition: service_healthy
@@ -30,14 +32,11 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    # Sin límite de CPU: un límite de 2 CPU impide arrancar en una VM de 1 vCPU
     deploy:
       resources:
         limits:
           memory: 4G
-          cpus: '2.0'
-        reservations:
-          memory: 1G
-          cpus: '0.5'
 
   mysql:
     image: mysql:8.0

@@ -17,8 +17,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el código de la aplicación
 COPY project/ /app/
-COPY nginx.conf /etc/nginx/sites-available/default
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Plantillas de Nginx (start.sh activa la temporal o la de HTTPS según exista el certificado).
+# Se quita el sitio de ejemplo de Debian para que no haya dos configuraciones activas.
+COPY nginx/ /etc/nginx/plantillas/
+RUN rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf
 
 # Crear directorios necesarios con permisos adecuados
 RUN mkdir -p uploads static/img .flask_session /var/log/nginx /var/lib/nginx \
