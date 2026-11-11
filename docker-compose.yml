@@ -58,7 +58,9 @@ services:
       - "127.0.0.1:${MYSQL_HOST_PORT:-3307}:3306"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      # 127.0.0.1 (TCP) y no "localhost" (socket): durante la primera inicialización MySQL
+      # levanta un servidor temporal sin red que respondería al ping antes de estar listo
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 10s
       timeout: 5s
       retries: 10
