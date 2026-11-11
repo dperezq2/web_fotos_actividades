@@ -1,0 +1,91 @@
+{% extends 'layout.html' %}
+
+{% block title %}Sorteos{% endblock %}
+
+{% block content %}
+<div class="page-head page-head--actions">
+    <div>
+        <h1>Sorteos</h1>
+        <p>Hola, {{ current_user.nombre.split(' ')[0] }}. Crea un sorteo o continúa uno en curso.</p>
+    </div>
+    {% if resumen.elegibles %}
+    <a class="btn btn--primary btn--lg" href="{{ url_for('sorteos.nuevo') }}"><i class="fa-solid fa-plus"></i> Nuevo sorteo</a>
+    {% endif %}
+</div>
+
+<div class="stats">
+    <div class="stat stat--highlight">
+        <div class="stat__label"><i class="fa-solid fa-ticket"></i> Pueden participar</div>
+        <div class="stat__value">{{ resumen.elegibles }}</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label"><i class="fa-solid fa-trophy"></i> Ganadores</div>
+        <div class="stat__value">{{ resumen.ganadores }}</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label"><i class="fa-solid fa-dice"></i> Sorteos</div>
+        <div class="stat__value">{{ resumen.sorteos }}</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label"><i class="fa-solid fa-people-group"></i> Empleados</div>
+        <div class="stat__value">{{ resumen.empleados }}</div>
+    </div>
+</div>
+
+{% if not resumen.empleados %}
+<section class="card callout">
+    <i class="fa-solid fa-file-csv callout__icon"></i>
+    <div>
+        <h2 class="card__title">Primero carga al personal</h2>
+        {% if current_user.rol == 'SUPERADMIN' %}
+        <p class="hint">Importa el CSV de empleados para poder crear sorteos.</p>
+        <a class="btn btn--primary" href="{{ url_for('admin.empleados') }}"><i class="fa-solid fa-upload"></i> Importar empleados</a>
+        {% else %}
+        <p class="hint">Aún no hay empleados registrados. Pide al administrador que importe el personal.</p>
+        {% endif %}
+    </div>
+</section>
+{% elif not resumen.elegibles %}
+<div class="alert alert--warning">Todos los empleados activos ya ganaron. No hay participantes para nuevos sorteos.</div>
+{% endif %}
+
+<section class="card">
+    <h2 class="card__title"><i class="fa-solid fa-list-check"></i> Sorteos realizados</h2>
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Sorteo</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    <th>Participantes</th>
+                    <th>Ganadores</th>
+                    <th><span class="visually-hidden">Acciones</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in sorteos %}
+                {% set estado = ESTADOS_SORTEO[s.estado] %}
+                <tr>
+                    <td data-label="Sorteo"><a class="link-strong" href="{{ url_for('sorteos.ruleta', sorteo_id=s.id) }}">{{ s.nombre }}</a></td>
+                    <td data-label="Fecha">{{ s.created_at|fecha }}</td>
+                    <td data-label="Estado"><span class="tag {{ estado[1] }}">{{ estado[0] }}</span></td>
+                    <td data-label="Participantes">{{ s.total_participantes }}</td>
+                    <td data-label="Ganadores">{{ s.num_ganadores }}</td>
+                    <td class="table__actions">
+                        <a class="btn btn--{{ 'primary' if s.estado != 'FINALIZADO' else 'outline' }} btn--sm" href="{{ url_for('sorteos.ruleta', sorteo_id=s.id) }}">
+                            {% if s.estado == 'FINALIZADO' %}<i class="fa-solid fa-eye"></i> Ver{% else %}<i class="fa-solid fa-play"></i> Continuar{% endif %}
+                        </a>
+                        {% if s.num_ganadores %}
+                        <a class="btn btn--ghost btn--sm" href="{{ url_for('sorteos.pdf', sorteo_id=s.id) }}" target="_blank"><i class="fa-solid fa-file-pdf"></i> PDF</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="empty-row">Aún no hay sorteos.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

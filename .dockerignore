@@ -23,3 +23,5 @@ coverage.xml
 *.sqlite
 uploads/*
 !uploads/.gitkeep
+mysql/
+.env

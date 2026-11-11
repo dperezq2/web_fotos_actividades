@@ -1,0 +1,76 @@
+{% extends 'layout.html' %}
+
+{% block title %}Ganadores{% endblock %}
+
+{% block content %}
+<div class="page-head page-head--actions">
+    <div>
+        <h1>Ganadores</h1>
+        <p>Todas las personas que han ganado. Cada una gana una sola vez.</p>
+    </div>
+    <div class="head-actions">
+        <a class="btn btn--outline btn--sm" href="{{ url_for('sorteos.mural', sorteo=sorteo_id) if sorteo_id else url_for('sorteos.mural') }}" target="_blank"><i class="fa-solid fa-tv"></i> Mural</a>
+        <a class="btn btn--outline btn--sm" href="{{ url_for('sorteos.ganadores_csv', q=q, sorteo=sorteo_id) }}"><i class="fa-solid fa-file-csv"></i> Exportar CSV</a>
+    </div>
+</div>
+
+<section class="card">
+    <form method="get" class="form-grid form-grid--filters-2" style="margin-bottom:16px">
+        <div class="field">
+            <label for="q">Buscar</label>
+            <input class="input" type="search" id="q" name="q" value="{{ q }}" placeholder="CUE o nombre">
+        </div>
+        <div class="field">
+            <label for="sorteo">Sorteo</label>
+            <select class="select" id="sorteo" name="sorteo">
+                <option value="">Todos</option>
+                {% for s in sorteos %}<option value="{{ s.id }}" {{ 'selected' if s.id == sorteo_id }}>{{ s.nombre }}</option>{% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn--outline"><i class="fa-solid fa-magnifying-glass"></i> Filtrar</button>
+    </form>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Nombre</th>
+                    <th>CUE</th>
+                    <th>Empresa / Distrito</th>
+                    <th>Sorteo</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in ganadores %}
+                <tr>
+                    <td data-label="Posición"><span class="tag tag--gold">{{ w.posicion }}</span></td>
+                    <td data-label="Nombre"><strong>{{ w.nombre }}</strong></td>
+                    <td data-label="CUE"><code>{{ w.cue }}</code></td>
+                    <td data-label="Empresa / Distrito">{{ [w.empresa, w.distrito]|select|join(' · ') or '—' }}</td>
+                    <td data-label="Sorteo"><a class="link-strong" href="{{ url_for('sorteos.ruleta', sorteo_id=w.sorteo_id) }}">{{ w.sorteo }}</a></td>
+                    <td data-label="Fecha">{{ w.fecha|fecha }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="empty-row">{% if q or sorteo_id %}Ningún ganador coincide con el filtro.{% else %}Aún no hay ganadores.{% endif %}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if total_paginas > 1 %}
+    <nav class="pagination" aria-label="Paginación">
+        <span>{{ total }} ganadores · página {{ pagina }} de {{ total_paginas }}</span>
+        <span class="pagination__links">
+            {% if pagina > 1 %}
+            <a class="btn btn--outline btn--sm" href="{{ url_for('sorteos.ganadores', q=q, sorteo=sorteo_id, pagina=pagina - 1) }}"><i class="fa-solid fa-chevron-left"></i> Anterior</a>
+            {% endif %}
+            {% if pagina < total_paginas %}
+            <a class="btn btn--outline btn--sm" href="{{ url_for('sorteos.ganadores', q=q, sorteo=sorteo_id, pagina=pagina + 1) }}">Siguiente <i class="fa-solid fa-chevron-right"></i></a>
+            {% endif %}
+        </span>
+    </nav>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends 'layout.html' %}
+
+{% block title %}Nuevo sorteo{% endblock %}
+
+{% macro grupo_filtro(campo, titulo, icono, vacio) %}
+<fieldset class="filter-group" data-campo="{{ campo }}">
+    <legend><i class="fa-solid {{ icono }}"></i> {{ titulo }} <span class="filter-group__scope" data-scope></span></legend>
+    <div class="chips" data-chips>
+        {% for o in opciones[campo] %}
+        <label class="chip">
+            <input type="checkbox" name="{{ campo }}" value="{{ o.valor }}" {{ 'checked' if o.valor in seleccion[campo] }}>
+            <span>{{ o.valor }} <small>{{ o.n }}</small></span>
+        </label>
+        {% endfor %}
+    </div>
+    <p class="hint" data-vacio {% if opciones[campo] %}hidden{% endif %}>{{ vacio }}</p>
+</fieldset>
+{% endmacro %}
+
+{% block content %}
+<div class="page-head">
+    <a class="back-link" href="{{ url_for('sorteos.inicio') }}"><i class="fa-solid fa-arrow-left"></i> Sorteos</a>
+    <h1>Nuevo sorteo</h1>
+    <p>Elige quiénes participan. Solo se incluye a empleados activos que todavía no han ganado.</p>
+</div>
+
+<form method="post" class="new-raffle" id="nuevoSorteo" data-opciones-url="{{ url_for('sorteos.opciones_filtros') }}">
+    <section class="card form-grid">
+        <h2 class="card__title"><i class="fa-solid fa-pen"></i> Datos del sorteo</h2>
+        <div class="field">
+            <label for="nombre">Nombre</label>
+            <input class="input" id="nombre" name="nombre" maxlength="120" required value="{{ form.get('nombre', '') }}"
+                   placeholder="Ej. Convivio 2026 – Distrito 1" autofocus>
+        </div>
+        <div class="field">
+            <label for="descripcion">Descripción <span class="hint">(opcional)</span></label>
+            <input class="input" id="descripcion" name="descripcion" maxlength="255" value="{{ form.get('descripcion', '') }}">
+        </div>
+    </section>
+
+    <section class="card form-grid">
+        <div class="filters-head">
+            <h2 class="card__title"><i class="fa-solid fa-filter"></i> ¿Quiénes participan?</h2>
+            <button type="button" class="btn btn--ghost btn--sm" id="limpiarFiltros"><i class="fa-solid fa-eraser"></i> Limpiar filtros</button>
+        </div>
+        <p class="hint">
+            Ve de arriba hacia abajo: al marcar una <b>empresa</b> solo verás sus distritos, y al marcar un <b>distrito</b> solo sus departamentos.
+            Si no marcas nada en un grupo, se incluye a todos.
+        </p>
+        {{ grupo_filtro('empresa', 'Empresa', 'fa-building', 'Sin datos de empresa en el personal.') }}
+        {{ grupo_filtro('distrito', 'Distrito', 'fa-map-location-dot', 'No hay distritos para la empresa elegida.') }}
+        {{ grupo_filtro('departamento', 'Departamento', 'fa-sitemap', 'No hay departamentos para lo elegido.') }}
+    </section>
+
+    <div class="summary-bar">
+        <div class="summary-bar__count">
+            <span class="summary-bar__value" id="conteo">{{ '{:,}'.format(total) }}</span>
+            <span>participantes</span>
+        </div>
+        <button type="submit" class="btn btn--primary btn--lg" id="crearBtn" {{ 'disabled' if not total }}>
+            <i class="fa-solid fa-dice"></i> Crear sorteo
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    const form = document.getElementById('nuevoSorteo');
+    const conteo = document.getElementById('conteo');
+    const crearBtn = document.getElementById('crearBtn');
+    const CAMPOS = ['empresa', 'distrito', 'departamento'];
+    const grupos = Object.fromEntries(CAMPOS.map((c) => [c, form.querySelector(`[data-campo="${c}"]`)]));
+    let ultimaPeticion = 0;
+
+    function seleccionActual() {
+        const params = new URLSearchParams();
+        form.querySelectorAll('.filter-group input:checked').forEach((c) => params.append(c.name, c.value));
+        return params;
+    }
+
+    function chip(campo, opcion, marcado) {
+        const label = document.createElement('label');
+        label.className = 'chip';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.name = campo;
+        input.value = opcion.valor;
+        input.checked = marcado;
+        const span = document.createElement('span');
+        span.append(opcion.valor + ' ');
+        const small = document.createElement('small');
+        small.textContent = opcion.n;
+        span.appendChild(small);
+        label.append(input, span);
+        return label;
+    }
+
+    // Redibuja un grupo con sus opciones disponibles, conservando lo marcado
+    function pintarGrupo(campo, opciones, seleccion) {
+        const grupo = grupos[campo];
+        const contenedor = grupo.querySelector('[data-chips]');
+        const marcados = new Set(seleccion);
+        contenedor.replaceChildren(...opciones.map((o) => chip(campo, o, marcados.has(o.valor))));
+        grupo.querySelector('[data-vacio]').hidden = opciones.length > 0;
+    }
+
+    // Indica de qué depende cada grupo, p. ej. "de Palo Blanco"
+    function pintarAlcance(seleccion) {
+        const previos = { distrito: ['empresa'], departamento: ['empresa', 'distrito'] };
+        Object.entries(previos).forEach(([campo, deps]) => {
+            const valores = deps.flatMap((d) => seleccion[d]);
+            const scope = grupos[campo].querySelector('[data-scope]');
+            scope.textContent = valores.length ? `· de ${valores.join(', ')}` : '';
+        });
+    }
+
+    async function actualizar(cambiado) {
+        const id = ++ultimaPeticion;
+        form.classList.add('is-loading');
+        try {
+            const resp = await fetch(`${form.dataset.opcionesUrl}?${seleccionActual()}`, { headers: { Accept: 'application/json' } });
+            const data = await resp.json();
+            if (id !== ultimaPeticion) return; // Llegó una respuesta más nueva
+            // Solo se redibujan los grupos que dependen del que cambió
+            const desde = cambiado ? CAMPOS.indexOf(cambiado) + 1 : 0;
+            CAMPOS.slice(desde).forEach((c) => pintarGrupo(c, data.opciones[c], data.seleccion[c]));
+            pintarAlcance(data.seleccion);
+            conteo.textContent = data.total.toLocaleString('es-GT');
+            crearBtn.disabled = data.total === 0;
+        } catch (err) {
+            conteo.textContent = '—';
+        } finally {
+            if (id === ultimaPeticion) form.classList.remove('is-loading');
+        }
+    }
+
+    form.addEventListener('change', (e) => {
+        if (e.target.type === 'checkbox') actualizar(e.target.name);
+    });
+
+    document.getElementById('limpiarFiltros').addEventListener('click', () => {
+        form.querySelectorAll('.filter-group input:checked').forEach((c) => { c.checked = false; });
+        actualizar(null);
+    });
+
+    pintarAlcance({ empresa: [], distrito: [], departamento: [],
+        ...Object.fromEntries(CAMPOS.map((c) => [c, [...form.querySelectorAll(`input[name="${c}"]:checked`)].map((i) => i.value)])) });
+})();
+</script>
+{% endblock %}

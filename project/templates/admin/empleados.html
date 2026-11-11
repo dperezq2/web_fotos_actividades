@@ -1,0 +1,173 @@
+{% extends 'layout.html' %}
+
+{% block title %}Empleados{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <h1>Empleados</h1>
+    <p>Personal que participa en los sorteos. Quien gana una vez ya no vuelve a participar.</p>
+</div>
+
+<div class="stats">
+    <div class="stat">
+        <div class="stat__label"><i class="fa-solid fa-people-group"></i> Registrados</div>
+        <div class="stat__value">{{ resumen.total }}</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label"><i class="fa-solid fa-user-check"></i> Activos</div>
+        <div class="stat__value">{{ resumen.activos }}</div>
+    </div>
+    <div class="stat">
+        <div class="stat__label"><i class="fa-solid fa-trophy"></i> Ya ganaron</div>
+        <div class="stat__value">{{ resumen.ganadores }}</div>
+    </div>
+    <div class="stat stat--highlight">
+        <div class="stat__label"><i class="fa-solid fa-ticket"></i> Pueden participar</div>
+        <div class="stat__value">{{ resumen.elegibles }}</div>
+    </div>
+</div>
+
+<section class="card">
+    <h2 class="card__title"><i class="fa-solid fa-file-csv"></i> Importar desde CSV</h2>
+
+    {% if resultado_importacion %}
+        {% if resultado_importacion.ok %}
+        <div class="alert alert--success" role="status">
+            <strong><i class="fa-solid fa-circle-check"></i> {{ resultado_importacion.archivo }} importado.</strong>
+            <ul class="result-list">
+                <li>{{ resultado_importacion.total }} empleados en el archivo</li>
+                <li>{{ resultado_importacion.nuevos }} nuevos · {{ resultado_importacion.actualizados }} actualizados</li>
+                {% if resultado_importacion.desactivados %}
+                <li>{{ resultado_importacion.desactivados }} marcados como inactivos (no venían en el archivo)</li>
+                {% endif %}
+            </ul>
+        </div>
+        {% else %}
+        <div class="alert alert--error" role="alert">
+            <strong><i class="fa-solid fa-circle-xmark"></i> No se importó nada de {{ resultado_importacion.archivo }}.</strong>
+            Corrige estos problemas y vuelve a intentarlo:
+            <ul class="result-list">
+                {% for error in resultado_importacion.errores %}<li>{{ error }}</li>{% endfor %}
+                {% if resultado_importacion.total_errores > resultado_importacion.errores|length %}
+                <li>… y {{ resultado_importacion.total_errores - resultado_importacion.errores|length }} problemas más</li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+    {% endif %}
+
+    <form method="post" action="{{ url_for('admin.importar_empleados') }}" enctype="multipart/form-data" class="form-grid">
+        <div class="file-picker">
+            <label class="btn btn--outline" for="archivo"><i class="fa-solid fa-folder-open"></i> Elegir archivo</label>
+            <input type="file" id="archivo" name="archivo" accept=".csv,text/csv" class="visually-hidden" required data-file-name="archivoNombre">
+            <span class="file-picker__name" id="archivoNombre">Ningún archivo seleccionado</span>
+        </div>
+
+        <label class="check">
+            <input type="checkbox" name="desactivar_faltantes" value="1">
+            <span>
+                Este archivo contiene a <b>todo</b> el personal
+                <small>Quien no venga en el archivo quedará inactivo y no participará en los sorteos.</small>
+            </span>
+        </label>
+
+        <div>
+            <button type="submit" class="btn btn--primary"><i class="fa-solid fa-upload"></i> Importar</button>
+            <a class="btn btn--ghost" href="{{ url_for('admin.plantilla_csv') }}"><i class="fa-solid fa-download"></i> Descargar plantilla</a>
+        </div>
+
+        <p class="hint">
+            Columnas: <code>cue,nombre_completo,empresa,distrito,departamento,path_fotografia</code>.
+            Solo <b>cue</b> y <b>nombre_completo</b> son obligatorias. Si el CUE ya existe, se actualizan sus datos.
+            Si alguna línea tiene un error, no se importa nada.
+        </p>
+    </form>
+</section>
+
+<section class="card">
+    <h2 class="card__title"><i class="fa-solid fa-list"></i> Listado</h2>
+
+    <form method="get" class="form-grid form-grid--filters" style="margin-bottom:16px">
+        <div class="field">
+            <label for="q">Buscar</label>
+            <input class="input" type="search" id="q" name="q" value="{{ q }}" placeholder="CUE, nombre o departamento">
+        </div>
+        <div class="field">
+            <label for="empresa">Empresa</label>
+            <select class="select" id="empresa" name="empresa">
+                <option value="">Todas</option>
+                {% for e in empresas %}<option value="{{ e }}" {{ 'selected' if e == empresa }}>{{ e }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="distrito">Distrito</label>
+            <select class="select" id="distrito" name="distrito">
+                <option value="">Todos</option>
+                {% for d in distritos %}<option value="{{ d }}" {{ 'selected' if d == distrito }}>{{ d }}</option>{% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn--outline"><i class="fa-solid fa-magnifying-glass"></i> Filtrar</button>
+    </form>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>CUE</th>
+                    <th>Nombre</th>
+                    <th>Empresa</th>
+                    <th>Distrito</th>
+                    <th>Departamento</th>
+                    <th>Estado</th>
+                    <th><span class="visually-hidden">Acciones</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in empleados %}
+                <tr class="{{ 'is-inactive' if not e.activo }}">
+                    <td data-label="CUE"><code>{{ e.cue }}</code></td>
+                    <td data-label="Nombre">{{ e.nombre_completo }}</td>
+                    <td data-label="Empresa">{{ e.empresa or '—' }}</td>
+                    <td data-label="Distrito">{{ e.distrito or '—' }}</td>
+                    <td data-label="Departamento">{{ e.departamento or '—' }}</td>
+                    <td data-label="Estado">
+                        {% if e.ha_ganado %}
+                        <span class="tag tag--gold"><i class="fa-solid fa-trophy"></i> Ganó</span>
+                        {% elif e.activo %}
+                        <span class="tag">Participa</span>
+                        {% else %}
+                        <span class="tag tag--muted">Inactivo</span>
+                        {% endif %}
+                    </td>
+                    <td class="table__actions">
+                        <form method="post" action="{{ url_for('admin.cambiar_estado_empleado', empleado_id=e.id) }}">
+                            <button class="btn btn--ghost btn--sm">
+                                {{ 'Desactivar' if e.activo else 'Activar' }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="empty-row">
+                    {% if q or empresa or distrito %}No hay empleados que coincidan con el filtro.{% else %}Aún no hay empleados. Importa un CSV para comenzar.{% endif %}
+                </td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if total_paginas > 1 %}
+    <nav class="pagination" aria-label="Paginación">
+        <span>{{ total_filtrado }} empleados · página {{ pagina }} de {{ total_paginas }}</span>
+        <span class="pagination__links">
+            {% if pagina > 1 %}
+            <a class="btn btn--outline btn--sm" href="{{ url_for('admin.empleados', q=q, empresa=empresa, distrito=distrito, pagina=pagina - 1) }}"><i class="fa-solid fa-chevron-left"></i> Anterior</a>
+            {% endif %}
+            {% if pagina < total_paginas %}
+            <a class="btn btn--outline btn--sm" href="{{ url_for('admin.empleados', q=q, empresa=empresa, distrito=distrito, pagina=pagina + 1) }}">Siguiente <i class="fa-solid fa-chevron-right"></i></a>
+            {% endif %}
+        </span>
+    </nav>
+    {% endif %}
+</section>
+{% endblock %}

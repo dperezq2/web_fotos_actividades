@@ -1,0 +1,17 @@
+{% extends 'layout.html' %}
+
+{% block title %}{{ titulo }}{% endblock %}
+{% block body_class %}login-page{% endblock %}
+
+{% block body %}
+<main class="login">
+    <div class="card" style="text-align:center">
+        <p class="error-code">{{ codigo }}</p>
+        <h1 class="login__title">{{ titulo }}</h1>
+        <p class="login__subtitle">{{ mensaje }}</p>
+        <a class="btn btn--primary btn--block" href="{{ url_for('sorteos.inicio') if current_user else url_for('auth.login') }}">
+            <i class="fa-solid fa-house"></i> Ir al inicio
+        </a>
+    </div>
+</main>
+{% endblock %}

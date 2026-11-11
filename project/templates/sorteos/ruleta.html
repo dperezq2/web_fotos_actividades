@@ -1,0 +1,123 @@
+{% extends 'layout.html' %}
+{% from '_logos.html' import logos %}
+
+{% block title %}{{ sorteo.nombre }}{% endblock %}
+
+{% macro tarjeta_ganador(w, puede_quitar) %}
+<li class="winner" data-id="{{ w.id }}">
+    <span class="winner__pos">{{ w.posicion }}</span>
+    <div class="winner__body">
+        <strong class="winner__name">{{ w.nombre }}</strong>
+        <span class="winner__meta">CUE {{ w.cue }}{% for extra in [w.empresa, w.distrito] if extra %} · {{ extra }}{% endfor %}</span>
+    </div>
+    {% if puede_quitar %}
+    <form method="post" action="{{ url_for('sorteos.quitar_ganador', sorteo_id=sorteo.id, ganador_id=w.id) }}"
+          data-confirm-title="¿Quitar a {{ w.nombre }}?" data-confirm-ok="Quitar ganador" data-confirm-danger
+          data-confirm="Dejará de ser ganador de este sorteo y volverá a participar en sorteos.">
+        <button class="btn btn--ghost btn--sm winner__remove" title="Quitar ganador" aria-label="Quitar a {{ w.nombre }}"><i class="fa-solid fa-xmark"></i></button>
+    </form>
+    {% endif %}
+</li>
+{% endmacro %}
+
+{% block content %}
+{% set es_superadmin = current_user.rol == 'SUPERADMIN' %}
+{% set finalizado = sorteo.estado == 'FINALIZADO' %}
+{% set estado = ESTADOS_SORTEO[sorteo.estado] %}
+
+<div class="page-head page-head--actions">
+    <div>
+        <a class="back-link" href="{{ url_for('sorteos.inicio') }}"><i class="fa-solid fa-arrow-left"></i> Sorteos</a>
+        <h1>{{ sorteo.nombre }}</h1>
+        <p>
+            <span class="tag {{ estado[1] }}" id="estadoTag">{{ estado[0] }}</span>
+            Creado el {{ sorteo.created_at|fecha }}{% if sorteo.creado_por_nombre %} por {{ sorteo.creado_por_nombre }}{% endif %}
+        </p>
+        {% if sorteo.descripcion %}<p>{{ sorteo.descripcion }}</p>{% endif %}
+    </div>
+    <div class="head-actions">
+        <a class="btn btn--outline btn--sm" href="{{ url_for('sorteos.mural', sorteo=sorteo.id) }}" target="_blank"><i class="fa-solid fa-tv"></i> Mural</a>
+        <a class="btn btn--outline btn--sm" href="{{ url_for('sorteos.pdf', sorteo_id=sorteo.id) }}" target="_blank"><i class="fa-solid fa-file-pdf"></i> PDF</a>
+        {% if not finalizado %}
+        <form method="post" action="{{ url_for('sorteos.finalizar', sorteo_id=sorteo.id) }}"
+              data-confirm-title="¿Finalizar el sorteo?" data-confirm-ok="Finalizar"
+              data-confirm="Ya no se podrán sortear más ganadores. Los ganadores actuales se conservan.">
+            <button class="btn btn--outline btn--sm"><i class="fa-solid fa-flag-checkered"></i> Finalizar</button>
+        </form>
+        {% elif es_superadmin %}
+        <form method="post" action="{{ url_for('sorteos.reabrir', sorteo_id=sorteo.id) }}">
+            <button class="btn btn--outline btn--sm"><i class="fa-solid fa-lock-open"></i> Reabrir</button>
+        </form>
+        {% endif %}
+        {% if es_superadmin %}
+        <form method="post" action="{{ url_for('sorteos.eliminar', sorteo_id=sorteo.id) }}"
+              data-confirm-title="¿Eliminar «{{ sorteo.nombre }}»?" data-confirm-ok="Eliminar sorteo" data-confirm-danger
+              data-confirm="Se borrarán sus {{ ganadores|length }} ganadores y volverán a participar. Esta acción no se puede deshacer.">
+            <button class="btn btn--ghost btn--sm"><i class="fa-solid fa-trash"></i> Eliminar</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<section class="raffle" id="ruletaApp"
+         data-sortear-url="{{ url_for('sorteos.sortear', sorteo_id=sorteo.id) }}"
+         data-revelar-url="{{ url_for('sorteos.revelar', sorteo_id=sorteo.id) }}"
+         data-quitar-url="{{ url_for('sorteos.quitar_ganador', sorteo_id=sorteo.id, ganador_id=0) if es_superadmin else '' }}"
+         data-max="{{ max_por_tirada }}">
+
+    <div class="stage" id="stage">
+        <canvas class="stage__confetti" id="confettiCanvas"></canvas>
+        <button type="button" class="stage__fullscreen" id="fullscreenBtn" title="Pantalla completa" aria-label="Pantalla completa">
+            <i class="fa-solid fa-expand"></i>
+        </button>
+        {{ logos('stage__logos') }}
+        <p class="stage__eyebrow">{{ sorteo.nombre }}</p>
+        <p class="stage__position" id="stagePos" hidden></p>
+        <div class="stage__name" id="stageName" aria-live="polite">
+            {% if finalizado %}Sorteo finalizado{% elif restantes %}¿Quién ganará?{% else %}Sin participantes disponibles{% endif %}
+        </div>
+        <p class="stage__meta" id="stageMeta"></p>
+
+        <div class="stage__stats">
+            <span><b>{{ sorteo.total_participantes }}</b> participantes</span>
+            <span><b id="restantes">{{ restantes }}</b> por sortear</span>
+            <span><b id="numGanadores">{{ ganadores|length }}</b> ganadores</span>
+        </div>
+    </div>
+
+    {% if not finalizado %}
+    <div class="card controls" id="controls">
+        <div class="controls__qty">
+            <span class="field__label">¿Cuántos ganadores?</span>
+            <div class="chips chips--qty" role="radiogroup">
+                {% for n in [1, 2, 3, 5, 10] %}
+                <label class="chip"><input type="radio" name="cantidad" value="{{ n }}" {{ 'checked' if n == 1 }}><span>{{ n }}</span></label>
+                {% endfor %}
+                <input class="input input--qty" type="number" id="cantidadOtra" min="1" max="{{ max_por_tirada }}" placeholder="Otra" aria-label="Otra cantidad">
+            </div>
+        </div>
+        <label class="check">
+            <input type="checkbox" id="unoPorUno" checked>
+            <span>Revelar uno por uno</span>
+        </label>
+        <button type="button" class="btn btn--draw" id="drawBtn" {{ 'disabled' if not restantes }}>
+            <i class="fa-solid fa-dice"></i> ¡Sortear!
+        </button>
+        <p class="hint controls__hint">Atajo: barra espaciadora</p>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <h2 class="card__title"><i class="fa-solid fa-trophy"></i> Ganadores</h2>
+        <p class="empty-row" id="sinGanadores" {% if ganadores %}hidden{% endif %}>Aún no hay ganadores en este sorteo.</p>
+        <ol class="winners" id="listaGanadores">
+            {% for w in ganadores %}{{ tarjeta_ganador(w, es_superadmin) }}{% endfor %}
+        </ol>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.browser.min.js"></script>
+<script src="{{ url_for('static', filename='js/ruleta.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,10 @@
+{#- Franja de logos de las empresas. La lista (LOGOS) está en app.py.
+    Uso: {% from '_logos.html' import logos %} ... {{ logos('clase-del-contenedor') }}
+    En celular se acomodan en 3 columnas (2 filas); en pantallas anchas, en una sola línea. -#}
+{% macro logos(clase) -%}
+<div class="logos-strip {{ clase }}">
+    {%- for archivo, nombre in LOGOS %}
+    <img src="{{ url_for('static', filename='img/' ~ archivo) }}" alt="{{ nombre }}" title="{{ nombre }}" draggable="false">
+    {%- endfor %}
+</div>
+{%- endmacro %}

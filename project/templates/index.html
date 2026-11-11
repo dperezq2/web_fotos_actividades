@@ -1,60 +1,105 @@
+{% from '_logos.html' import logos %}
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>Fotos de la Reunión</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}" type="image/png">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#1f5f02">
+    <title>{{ activity_title }} · Fotos Palo Blanco</title>
+    <link rel="icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
-<body>
-    <div class="container">
-        <h1><i class="fas fa-camera"></i> {{ activity_title }}</h1>
-        
-        {% if message %}
-        <div class="message {{ 'success' if message.type == 'success' else 'error' }}">
-            {{ message.text }}
-        </div>
-        {% endif %}
-        
-        <div class="upload-section">
-            <form method="post" enctype="multipart/form-data" id="uploadForm" action="{{ request.path }}">
-                <div class="file-input-container">
-                    <label class="custom-file-upload gallery-btn" onclick="triggerFileInput('gallery')">
-                        <i class="fas fa-images"></i> Seleccionar de Galería
-                    </label>
-                    <label class="custom-file-upload camera-btn" onclick="triggerFileInput('camera')">
-                        <i class="fas fa-camera"></i> Tomar Foto
-                    </label>
-                    <input type="file" name="photos" id="photoInput" accept="image/*" class="file-input" style="display:none;">
-                </div>
-                <div id="previewContainer" class="preview-container" style="display:none;"></div>
-                <button type="submit" class="submit-btn" id="submitBtn">
-                    <i class="fas fa-upload"></i> Subir Fotos
-                </button>
-            </form>
-        </div>
-        
-        <div class="gallery">
-            {% for photo in photos %}
-            <div class="photo-container">
-                <img 
-                src="{{ url_for('uploaded_file', activity=photo.activity, filename=photo.filename) }}"  
-                    alt="Foto subida"
-                    ondragstart="return false;"
-                    onselectstart="return false;"
-                    oncontextmenu="return false;"
-                >
-                
+<body class="tema-claro" data-upload-url="{{ request.path }}"
+      data-api-url="{{ url_for('fotos.photos_api', activity=activity) }}"
+      data-max-photo-mb="{{ max_photo_mb }}">
+    <header class="hero">
+        {{ logos('hero__logos') }}
+        <p class="hero__eyebrow">Galería del evento</p>
+        <h1 class="hero__title">{{ activity_title }}</h1>
+        <p class="hero__subtitle">Comparte tus mejores momentos. Tus fotos aparecerán en la galería para todos.</p>
+    </header>
+
+    <main class="page">
+        <section class="card upload" aria-labelledby="upload-title">
+            <h2 id="upload-title" class="card__title"><i class="fa-solid fa-cloud-arrow-up"></i> Subir fotos</h2>
+
+            {% if message %}
+            <div class="alert alert--{{ 'success' if message.type == 'success' else 'error' }}" role="status">
+                {{ message.text }}
             </div>
-            {% endfor %}
-        </div>
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data" id="uploadForm" action="{{ request.path }}" novalidate>
+                <div class="dropzone" id="dropzone">
+                    <div class="picker">
+                        <label class="btn btn--primary btn--lg" for="inputCamera">
+                            <i class="fa-solid fa-camera"></i> Tomar foto
+                        </label>
+                        <label class="btn btn--outline btn--lg" for="inputGallery">
+                            <i class="fa-solid fa-images"></i> Elegir de galería
+                        </label>
+                    </div>
+                    <input type="file" name="photos" id="inputCamera" accept="image/*" capture="environment" class="visually-hidden">
+                    <input type="file" name="photos" id="inputGallery" accept="image/jpeg,image/png,image/webp,image/*" multiple class="visually-hidden">
+                    <p class="dropzone__hint">
+                        <span class="only-desktop">o arrastra tus fotos aquí · </span>JPG, PNG o WEBP, hasta {{ max_photo_mb }} MB cada una
+                    </p>
+                </div>
+
+                <ul class="queue" id="queue" aria-live="polite" hidden></ul>
+
+                <div class="upload__actions" id="uploadActions">
+                    <button type="submit" class="btn btn--success btn--lg btn--block" id="submitBtn">
+                        <i class="fa-solid fa-upload"></i> <span id="submitLabel">Subir fotos</span>
+                    </button>
+                    <button type="button" class="btn btn--ghost" id="clearBtn" hidden>Quitar todas</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="card gallery-card" aria-labelledby="gallery-title">
+            <div class="gallery-card__head">
+                <h2 id="gallery-title" class="card__title">
+                    <i class="fa-solid fa-photo-film"></i> Galería
+                    <span class="badge" id="photoCount">{{ photos|length }}</span>
+                </h2>
+                <span class="live" id="liveIndicator" title="La galería se actualiza automáticamente">
+                    <span class="live__dot"></span> En vivo
+                </span>
+            </div>
+
+            <p class="empty" id="emptyState" {% if photos %}hidden{% endif %}>
+                <i class="fa-regular fa-image"></i>
+                Aún no hay fotos. ¡Sé el primero en compartir!
+            </p>
+
+            <div class="gallery" id="gallery">
+                {% for photo in photos %}
+                <button type="button" class="tile" data-filename="{{ photo.filename }}" data-vista="{{ photo.vista }}">
+                    <img src="{{ photo.mini }}" alt="Foto {{ loop.revindex }} del evento" loading="lazy" decoding="async" draggable="false">
+                </button>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">Palo Blanco Fresh Foods</footer>
+
+    <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Visor de fotos" hidden>
+        <button type="button" class="lightbox__btn lightbox__close" id="lbClose" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+        <button type="button" class="lightbox__btn lightbox__prev" id="lbPrev" aria-label="Anterior"><i class="fa-solid fa-chevron-left"></i></button>
+        <figure class="lightbox__figure">
+            <img id="lbImage" alt="" draggable="false">
+            <div class="lightbox__spinner" id="lbSpinner"></div>
+        </figure>
+        <button type="button" class="lightbox__btn lightbox__next" id="lbNext" aria-label="Siguiente"><i class="fa-solid fa-chevron-right"></i></button>
+        <div class="lightbox__counter" id="lbCounter"></div>
     </div>
-    <script>
-        const currentActivity = "{{ request.path.split('/')[-1] }}";
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.js"></script>
+
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

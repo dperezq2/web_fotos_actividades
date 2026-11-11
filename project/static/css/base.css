@@ -1,0 +1,233 @@
+/* Estilos compartidos: fotos, login y sorteos */
+
+:root {
+    --brand: #2c8503;
+    --brand-strong: #1f5f02;
+    --brand-soft: #e8f3e1;
+    --ink: #1c2417;
+    --ink-muted: #5d6b55;
+    --bg: #f3f6f1;
+    --surface: #ffffff;
+    --border: #dfe6da;
+    --danger: #c0392b;
+    --danger-soft: #fbeaea;
+    --warning: #b7791f;
+    --warning-soft: #fdf4e3;
+    --radius: 16px;
+    --shadow: 0 1px 2px rgba(20, 40, 10, .06), 0 8px 24px rgba(20, 40, 10, .08);
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --brand: #5fbf2a;
+        --brand-strong: #7fd44c;
+        --brand-soft: #1f2f17;
+        --ink: #e8efe4;
+        --ink-muted: #a3b39a;
+        --bg: #11160e;
+        --surface: #1a2116;
+        --border: #2c3826;
+        --danger: #ef6b5d;
+        --danger-soft: #3a1d1a;
+        --warning: #e8b04f;
+        --warning-soft: #3a2e17;
+        --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+    }
+}
+
+/* Tema claro fijo (fotos y pantallas de sorteos/administración): tarjetas blancas
+   aunque el celular o la PC estén en modo oscuro. Mismos valores que el :root claro. */
+.tema-claro {
+    --brand: #2c8503;
+    --brand-strong: #1f5f02;
+    --brand-soft: #e8f3e1;
+    --ink: #1c2417;
+    --ink-muted: #5d6b55;
+    --bg: #f3f6f1;
+    --surface: #ffffff;
+    --border: #dfe6da;
+    --danger: #c0392b;
+    --danger-soft: #fbeaea;
+    --warning: #b7791f;
+    --warning-soft: #fdf4e3;
+    --shadow: 0 1px 2px rgba(20, 40, 10, .06), 0 8px 24px rgba(20, 40, 10, .08);
+    color-scheme: light;  /* Campos, selects y barras de desplazamiento también en claro */
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: var(--font);
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--bg);
+    -webkit-tap-highlight-color: transparent;
+}
+
+[hidden] { display: none !important; }
+
+.visually-hidden {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+/* ---------- Tarjetas y alertas ---------- */
+
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+}
+
+.card__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 16px;
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.card__title > i { color: var(--brand); }
+
+.alert {
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    border-radius: 10px;
+    font-weight: 500;
+}
+
+.alert--success { background: var(--brand-soft); color: var(--brand-strong); }
+.alert--error, .alert--danger { background: var(--danger-soft); color: var(--danger); }
+.alert--warning { background: var(--warning-soft); color: var(--warning); }
+.alert--info { background: var(--brand-soft); color: var(--ink); }
+
+/* ---------- Botones ---------- */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 10px 18px;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    user-select: none;
+    transition: background-color .2s, border-color .2s, transform .1s, opacity .2s;
+}
+
+.btn:active { transform: scale(.98); }
+.btn:focus-visible, .tile:focus-visible, .lightbox__btn:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+input:focus-visible + .btn { outline: 3px solid var(--brand); }
+
+.btn--lg { min-height: 54px; font-size: 1.05rem; }
+.btn--block { width: 100%; }
+
+.btn--primary { background: var(--brand); color: #fff; }
+.btn--primary:hover { background: var(--brand-strong); }
+
+.btn--outline { background: var(--surface); color: var(--brand-strong); border-color: var(--brand); }
+.btn--outline:hover { background: var(--brand-soft); }
+
+.btn--success { background: var(--brand-strong); color: #fff; }
+.btn--success:hover { filter: brightness(1.08); }
+
+.btn--danger { background: var(--danger); color: #fff; }
+.btn--danger:hover { filter: brightness(1.08); }
+
+.btn--sm { min-height: 34px; padding: 6px 12px; font-size: .875rem; border-radius: 9px; gap: 6px; }
+
+.btn--ghost { background: none; color: var(--ink-muted); min-height: 40px; }
+.btn--ghost:hover { color: var(--danger); }
+
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+/* ---------- Avisos ---------- */
+
+.toasts {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    z-index: 200;
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 420px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: #1c2417;
+    color: #fff;
+    font-size: .95rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .3);
+    animation: toast-in .25s ease;
+}
+
+.toast--success i { color: #7fd44c; }
+.toast--warning i { color: #f5c26b; }
+.toast--error i { color: #ff8a7d; }
+.toast.is-leaving { opacity: 0; transition: opacity .3s; }
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (min-width: 600px) {
+    .card { padding: 28px; }
+}
+
+/* ---------- Franja de logos (templates/_logos.html) ----------
+   Cada pantalla define su contenedor (fondo, alto de logo); aquí solo el acomodo.
+   Los selectores llevan "div." para ganarle a los estilos de cada contenedor. */
+
+/* Un logo muy ancho (p. ej. Agropecuaria Primavera) no debe ocupar el doble que el resto */
+.logos-strip img { max-width: var(--logo-max-w, 120px); object-fit: contain; }
+
+/* Pantallas anchas: siempre en una sola línea; si falta espacio, los logos se achican */
+@media (min-width: 600px) {
+    div.logos-strip { flex-wrap: nowrap; }
+    div.logos-strip img { flex: 0 1 auto; min-width: 0; }
+}
+
+/* Celular: 2 filas de 3, centradas, con esquinas redondeadas (no "píldora") */
+@media (max-width: 599px) {
+    div.logos-strip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: center;
+        justify-items: center;
+        gap: 10px 14px;
+        /* width: min(100%, 330px); */
+        padding: 10px 14px;
+        border-radius: 18px;
+    }
+    div.logos-strip img {
+        width: auto;
+        max-width: 100%;
+        height: var(--logo-h-movil, 38px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+}

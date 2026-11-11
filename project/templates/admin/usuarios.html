@@ -1,0 +1,114 @@
+{% extends 'layout.html' %}
+
+{% block title %}Usuarios{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <h1>Usuarios</h1>
+    <p>Personas que pueden iniciar sesión para ejecutar sorteos.</p>
+</div>
+
+{% if password_generada %}
+<section class="card secret" aria-live="polite">
+    <h2 class="card__title">
+        <i class="fa-solid fa-key"></i>
+        {{ 'Usuario creado' if password_generada.nuevo else 'Nueva contraseña generada' }}
+    </h2>
+    <div>
+        <strong>{{ password_generada.nombre }}</strong> · CUE <code>{{ password_generada.cue }}</code>
+    </div>
+    <div class="secret__value">
+        <code id="generatedPassword">{{ password_generada.password }}</code>
+        <button type="button" class="btn btn--outline btn--sm" data-copy="generatedPassword">
+            <i class="fa-regular fa-copy"></i> Copiar
+        </button>
+    </div>
+    <p class="alert alert--warning" style="margin:0">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        Compártela ahora con el usuario: por seguridad no se volverá a mostrar.
+    </p>
+</section>
+{% endif %}
+
+<section class="card">
+    <h2 class="card__title"><i class="fa-solid fa-user-plus"></i> Nuevo usuario</h2>
+    <form method="post" action="{{ url_for('admin.crear_usuario') }}" class="form-grid form-grid--3">
+        <div class="field">
+            <label for="cue">CUE</label>
+            <input class="input" id="cue" name="cue" inputmode="numeric" maxlength="10" required placeholder="Ej. 24702">
+        </div>
+        <div class="field">
+            <label for="nombre">Nombre completo</label>
+            <input class="input" id="nombre" name="nombre" maxlength="150" required>
+        </div>
+        <div class="field">
+            <label for="rol">Rol</label>
+            <select class="select" id="rol" name="rol">
+                <option value="USUARIO">Usuario</option>
+                <option value="SUPERADMIN">Superadmin</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn--primary">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Crear y generar contraseña
+        </button>
+    </form>
+    <p class="hint" style="margin-top:12px">
+        <b>Usuario</b>: ejecuta sorteos. <b>Superadmin</b>: además administra usuarios y empleados.
+    </p>
+</section>
+
+<section class="card">
+    <h2 class="card__title"><i class="fa-solid fa-users"></i> Usuarios registrados <span class="badge">{{ usuarios|length }}</span></h2>
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>CUE</th>
+                    <th>Nombre</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th><span class="visually-hidden">Acciones</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in usuarios %}
+                {% set es_yo = u.id == current_user.id %}
+                <tr class="{{ 'is-inactive' if not u.activo }}">
+                    <td data-label="CUE"><code>{{ u.cue }}</code></td>
+                    <td data-label="Nombre">{{ u.nombre }}{% if es_yo %} <span class="tag tag--muted">Tú</span>{% endif %}</td>
+                    <td data-label="Rol">
+                        <span class="tag {{ 'tag--dark' if u.rol == 'SUPERADMIN' }}">{{ u.rol|capitalize }}</span>
+                    </td>
+                    <td data-label="Estado">
+                        <span class="tag {{ '' if u.activo else 'tag--muted' }}">{{ 'Activo' if u.activo else 'Inactivo' }}</span>
+                    </td>
+                    <td class="table__actions">
+                        {% if not es_yo %}
+                        <form method="post" action="{{ url_for('admin.regenerar_password', user_id=u.id) }}"
+                              data-confirm-title="¿Generar una nueva contraseña?" data-confirm-ok="Generar contraseña"
+                              data-confirm="La contraseña actual de {{ u.nombre }} dejará de funcionar. Tendrás que compartirle la nueva.">
+                            <button class="btn btn--outline btn--sm"><i class="fa-solid fa-key"></i> Nueva contraseña</button>
+                        </form>
+                        <form method="post" action="{{ url_for('admin.cambiar_rol', user_id=u.id) }}"
+                              data-confirm-title="¿Cambiar el rol?" data-confirm-ok="Hacer {{ 'Usuario' if u.rol == 'SUPERADMIN' else 'Superadmin' }}"
+                              data-confirm="{{ u.nombre }} pasará a ser {{ 'Usuario: solo podrá ejecutar sorteos.' if u.rol == 'SUPERADMIN' else 'Superadmin: podrá administrar usuarios y empleados.' }}">
+                            <button class="btn btn--ghost btn--sm"><i class="fa-solid fa-user-gear"></i> Hacer {{ 'Usuario' if u.rol == 'SUPERADMIN' else 'Superadmin' }}</button>
+                        </form>
+                        <form method="post" action="{{ url_for('admin.cambiar_estado_usuario', user_id=u.id) }}"
+                              data-confirm-title="¿{{ 'Desactivar' if u.activo else 'Activar' }} a {{ u.nombre }}?" data-confirm-ok="{{ 'Desactivar' if u.activo else 'Activar' }}"
+                              data-confirm="{{ 'Ya no podrá iniciar sesión y, si está conectado, su sesión se cerrará.' if u.activo else 'Podrá volver a iniciar sesión con su contraseña actual.' }}"
+                              {% if u.activo %}data-confirm-danger{% endif %}>
+                            <button class="btn btn--ghost btn--sm">
+                                <i class="fa-solid {{ 'fa-user-slash' if u.activo else 'fa-user-check' }}"></i>
+                                {{ 'Desactivar' if u.activo else 'Activar' }}
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

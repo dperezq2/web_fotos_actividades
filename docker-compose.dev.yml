@@ -1,0 +1,10 @@
+# Solo para desarrollo local (sin nginx, SSL ni puertos 80/443):
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+# La app queda en http://localhost:3000
+services:
+  sorteo-app:
+    ports: !override
+      - "0.0.0.0:3000:3000"
+    command: ["gunicorn", "-b", "0.0.0.0:3000", "--workers", "3", "--timeout", "180", "app:app"]
+    environment:
+      - FLASK_ENV=development  # Cookie de sesión sin "Secure" porque es http

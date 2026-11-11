@@ -58,3 +58,14 @@ photos_registry_*.json
 static/uploads/
 
 .flask_session/
+# Registros de fotos (volumen persistente)
+project/database/
+
+# Datos de MySQL (volumen)
+mysql/data/
+
+# Volúmenes de Docker
+/database/
+/session_data/
+/logs/
+/certbot/

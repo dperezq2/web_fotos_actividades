@@ -1,0 +1,88 @@
+{% extends 'layout.html' %}
+{% from '_logos.html' import logos %}
+
+{% block title %}Iniciar sesión{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">
+{% endblock %}
+{% block tema %}{% endblock %}
+{% block body_class %}auth-page{% endblock %}
+
+{% block body %}
+<main class="auth">
+    {# Fondo único para toda la pantalla: trofeo tenue y confeti que flota #}
+    <div class="auth__decor" aria-hidden="true">
+        <i class="fa-solid fa-trophy auth__decor-icon"></i>
+        {% for i in range(20) %}<span class="auth__confetti" style="--i: {{ i }}"></span>{% endfor %}
+    </div>
+
+    {# ---------- Panel de marca ---------- #}
+    <section class="auth__brand" aria-labelledby="auth-title">
+        <div class="auth__brand-inner">
+            {{ logos('auth__logos') }}
+
+            <p class="auth__eyebrow">Palo Blanco Fresh Foods</p>
+            <h1 class="auth__title" id="auth-title">Sorteos de <span>nuestros eventos</span></h1>
+            <p class="auth__lead">Sorteos transparentes para nuestra gente: cada persona gana una sola vez y todo queda registrado.</p>
+
+            <ul class="auth__features">
+                <li><span><i class="fa-solid fa-dice"></i></span> Ruleta en vivo, lista para proyectar</li>
+                <li><span><i class="fa-solid fa-tv"></i></span> Mural de ganadores en tiempo real</li>
+                <li><span><i class="fa-solid fa-shield-halved"></i></span> Acceso solo para personal autorizado</li>
+            </ul>
+        </div>
+    </section>
+
+    {# ---------- Formulario ---------- #}
+    <section class="auth__panel">
+        <div class="auth__card">
+            <div class="auth__badge" aria-hidden="true"><i class="fa-solid fa-user-lock"></i></div>
+            <h2 class="auth__card-title">Bienvenido</h2>
+            <p class="auth__card-subtitle">Ingresa con tu CUE y la contraseña que te asignaron.</p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+            <div class="alert alert--{{ category }}" role="status" data-autohide>{{ message }}</div>
+            {% endfor %}
+            {% endwith %}
+
+            {% if error %}
+            <div class="alert alert--error auth__error" role="alert" data-autohide data-hide-on-input><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</div>
+            {% endif %}
+
+            <form method="post" class="form-grid" autocomplete="on" data-loading>
+                <div class="field">
+                    <label for="cue">CUE</label>
+                    <div class="input-icon">
+                        <i class="fa-solid fa-id-badge" aria-hidden="true"></i>
+                        <input class="input" type="text" id="cue" name="cue" value="{{ cue }}"
+                               inputmode="numeric" autocomplete="username" maxlength="10" required
+                               {% if not cue %}autofocus{% endif %} placeholder="Ej. 24702">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="password">Contraseña</label>
+                    <div class="input-icon input-group">
+                        <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                        <input class="input" type="password" id="password" name="password"
+                               autocomplete="current-password" required {% if cue %}autofocus{% endif %}
+                               data-capslock="capsAviso">
+                        <button type="button" class="input-group__btn" data-toggle-password="password" aria-label="Mostrar contraseña">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                    <p class="auth__caps" id="capsAviso" hidden><i class="fa-solid fa-triangle-exclamation"></i> Bloq Mayús está activado</p>
+                </div>
+                <button type="submit" class="btn btn--primary btn--lg btn--block auth__submit">
+                    <span class="auth__submit-label"><i class="fa-solid fa-right-to-bracket"></i> Ingresar</span>
+                    <span class="auth__submit-loading"><i class="fa-solid fa-circle-notch fa-spin"></i> Ingresando…</span>
+                </button>
+            </form>
+
+            <p class="auth__help"><i class="fa-regular fa-circle-question"></i> ¿No tienes acceso? Solicítalo al administrador del sistema.</p>
+        </div>
+
+        <p class="auth__footer">© {{ anio }} Palo Blanco Fresh Foods</p>
+    </section>
+</main>
+{% endblock %}
