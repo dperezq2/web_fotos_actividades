@@ -66,8 +66,16 @@ IP_DNS=$(getent ahostsv4 "$DOMAIN" | awk 'NR==1 {print $1}' || true)
 echo "   IP pública de este servidor: ${IP_PUBLICA:-desconocida}"
 echo "   IP a la que apunta ${DOMAIN}: ${IP_DNS:-ninguna}"
 
-if [ -z "$IP_DNS" ] || [ "$IP_DNS" != "$IP_PUBLICA" ]; then
-    echo "⚠️  El dominio no apunta a este servidor. Crea en tu DNS el registro:"
+# Rangos de Cloudflare: el dominio tiene el proxy activo ("nube naranja")
+if [[ "$IP_DNS" =~ ^(104\.(1[6-9]|2[0-7])|172\.(6[4-9]|7[01])|188\.114\.|162\.15[89]\.|141\.101\.|108\.162\.|173\.245\.) ]]; then
+    echo "⚠️  ${DOMAIN} pasa por el proxy de Cloudflare (nube naranja), por eso se ve la IP ${IP_DNS}."
+    echo "   En Cloudflare → DNS, edita el registro A de '${DOMAIN%%.*}':"
+    echo "      Contenido: ${IP_PUBLICA}   ·   Estado del proxy: 'Solo DNS' (nube GRIS)"
+    echo "   Espera 1-2 minutos y vuelve a ejecutar este script."
+    preguntar "¿Continuar de todas formas?" || exit 1
+elif [ -z "$IP_DNS" ] || [ "$IP_DNS" != "$IP_PUBLICA" ]; then
+    echo "⚠️  El dominio no apunta a este servidor (si acabas de cambiar el DNS, espera unos minutos)."
+    echo "   Crea en tu DNS el registro:"
     echo "      ${DOMAIN}.  A  ${IP_PUBLICA}"
     echo "   Sin eso no se puede obtener el certificado SSL."
     preguntar "¿Continuar de todas formas?" || exit 1
