@@ -24,6 +24,38 @@ usar_config() {
     nginx -t -q
 }
 
+# ¿El dominio apunta a este servidor? Así no se gastan intentos de Let's Encrypt
+# (máximo 5 fallidos por hora) mientras el DNS no esté listo.
+dns_listo() {
+    local ip_publica resueltas
+    ip_publica=$(curl -sf -m 5 -H "Metadata-Flavor: Google" \
+        http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip \
+        || curl -sf -m 5 https://checkip.amazonaws.com || true)
+    resueltas=$(getent ahosts "$DOMAIN" | awk '{print $1}' | sort -u | tr '\n' ' ')
+    if [ -z "$ip_publica" ]; then
+        return 0  # No se pudo averiguar la IP pública: se intenta de todas formas
+    fi
+    if [ "$resueltas" = "$ip_publica " ]; then
+        return 0
+    fi
+    echo "⏸️  ${DOMAIN} resuelve a: ${resueltas:-nada}; este servidor es ${ip_publica}."
+    echo "    Debe resolver SOLO a ${ip_publica} (sin proxy de Cloudflare ni IPv6). Se reintentará en 10 minutos."
+    return 1
+}
+
+# Pide el certificado y, si lo obtiene, activa HTTPS sin reiniciar
+pedir_certificado() {
+    dns_listo || return 1
+    if certbot certonly --webroot -w "$WEBROOT" -d "$DOMAIN" \
+            --email "$EMAIL" --agree-tos --no-eff-email --non-interactive; then
+        echo "✅ Certificado obtenido"
+        usar_config https.conf && nginx -s reload && echo "🔒 HTTPS activo: https://${DOMAIN}"
+        return 0
+    fi
+    echo "⚠️  Let's Encrypt rechazó la validación. Se reintentará en 10 minutos."
+    return 1
+}
+
 PIDS=()
 terminar() {
     echo "🛑 Deteniendo..."
@@ -63,21 +95,17 @@ else
     nginx -g 'daemon off;' &
     NGINX_PID=$!
     sleep 2
-
-    if certbot certonly --webroot -w "$WEBROOT" -d "$DOMAIN" \
-            --email "$EMAIL" --agree-tos --no-eff-email --non-interactive; then
-        echo "✅ Certificado obtenido"
-        usar_config https.conf && nginx -s reload
-    else
-        echo "⚠️  No se pudo obtener el certificado. El sitio queda solo en HTTP (el login no funcionará)."
-        echo "    Revisa que el DNS de ${DOMAIN} apunte a este servidor y que el firewall permita los puertos 80 y 443."
-        echo "    Luego reintenta con: docker compose restart sorteo-app"
-    fi
+    pedir_certificado || echo "    Mientras tanto el sitio funciona solo en HTTP (el login requiere HTTPS)."
 fi
 PIDS+=("$NGINX_PID")
 
-# ---------- 4. Renovación automática ----------
+# ---------- 4. Certificado pendiente y renovación automática ----------
 (
+    # Sin certificado: reintenta cada 10 minutos (solo pide si el DNS ya apunta aquí)
+    while [ ! -f "$CERT" ]; do
+        sleep 10m
+        pedir_certificado
+    done
     while true; do
         sleep 12h
         certbot renew --quiet --deploy-hook "nginx -s reload"
@@ -85,7 +113,11 @@ PIDS+=("$NGINX_PID")
 ) &
 PIDS+=("$!")
 
-echo "🎯 Listo: https://${DOMAIN}"
+if [ -f "$CERT" ]; then
+    echo "🎯 Listo: https://${DOMAIN}"
+else
+    echo "🎯 Listo (por ahora solo HTTP): http://${DOMAIN}"
+fi
 
 # ---------- 5. Vigilar procesos ----------
 # Si Gunicorn o Nginx terminan, salir para que Docker reinicie el contenedor
