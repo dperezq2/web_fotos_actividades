@@ -21,7 +21,7 @@
 <div class="page-head">
     <a class="back-link" href="{{ url_for('sorteos.inicio') }}"><i class="fa-solid fa-arrow-left"></i> Sorteos</a>
     <h1>Nuevo sorteo</h1>
-    <p>Elige quiénes participan. Solo se incluye a empleados activos que todavía no han ganado.</p>
+    <p>Elige quiénes participan. Solo se incluye a personas activas que todavía no han ganado en esa lista.</p>
 </div>
 
 <form method="post" class="new-raffle" id="nuevoSorteo" data-opciones-url="{{ url_for('sorteos.opciones_filtros') }}">
@@ -47,6 +47,22 @@
             Ve de arriba hacia abajo: al marcar una <b>empresa</b> solo verás sus distritos, y al marcar un <b>distrito</b> solo sus departamentos.
             Si no marcas nada en un grupo, se incluye a todos.
         </p>
+        {% if listas|length > 1 %}
+        <fieldset class="filter-group" data-campo="lista">
+            <legend><i class="fa-solid fa-users-rectangle"></i> Lista de participantes</legend>
+            <div class="chips">
+                {% for l in listas %}
+                <label class="chip">
+                    <input type="radio" name="lista" value="{{ l.lista }}" {{ 'checked' if l.lista == lista }}>
+                    <span>{{ l.lista }} <small>{{ l.elegibles }}</small></span>
+                </label>
+                {% endfor %}
+            </div>
+            <p class="hint">Quien gana en una lista ya no participa en esa lista, pero sí en las demás.</p>
+        </fieldset>
+        {% elif lista %}
+        <input type="hidden" name="lista" value="{{ lista }}">
+        {% endif %}
         {{ grupo_filtro('empresa', 'Empresa', 'fa-building', 'Sin datos de empresa en el personal.') }}
         {{ grupo_filtro('distrito', 'Distrito', 'fa-map-location-dot', 'No hay distritos para la empresa elegida.') }}
         {{ grupo_filtro('departamento', 'Departamento', 'fa-sitemap', 'No hay departamentos para lo elegido.') }}
@@ -77,6 +93,8 @@
     function seleccionActual() {
         const params = new URLSearchParams();
         form.querySelectorAll('.filter-group input:checked').forEach((c) => params.append(c.name, c.value));
+        const listaOculta = form.querySelector('input[type="hidden"][name="lista"]');
+        if (listaOculta) params.append('lista', listaOculta.value);
         return params;
     }
 
@@ -137,11 +155,12 @@
     }
 
     form.addEventListener('change', (e) => {
-        if (e.target.type === 'checkbox') actualizar(e.target.name);
+        // Al cambiar de lista se recalculan todos los grupos (CAMPOS.indexOf('lista') es -1)
+        if (e.target.type === 'checkbox' || e.target.name === 'lista') actualizar(e.target.name);
     });
 
     document.getElementById('limpiarFiltros').addEventListener('click', () => {
-        form.querySelectorAll('.filter-group input:checked').forEach((c) => { c.checked = false; });
+        form.querySelectorAll('.filter-group input[type="checkbox"]:checked').forEach((c) => { c.checked = false; });
         actualizar(null);
     });
 

@@ -1,7 +1,8 @@
 """Sorteos sobre MySQL: creación con filtros, ruleta, ganadores, PDF y mural.
 
-Regla principal: quien gana una vez ya no participa en ningún otro sorteo
-(lo garantiza el índice único ganadores.empleado_id).
+Regla principal: quien gana una vez ya no participa en ningún otro sorteo de la misma
+lista de participantes (lo garantiza el índice único ganadores.empleado_id: hay un
+registro de empleado por lista, así que quien gana en "Empleados" sigue en "Cooperativa").
 """
 import csv
 import io
@@ -9,13 +10,14 @@ import os
 import random
 import time
 from datetime import datetime
+from xml.sax.saxutils import escape
 
 import pymysql
 from flask import (Blueprint, Response, abort, current_app, flash, g, jsonify, redirect, render_template,
                    request, url_for)
 
 from auth import superadmin_required
-from db import execute, query, registrar_bitacora, transaction
+from db import LISTA_POR_DEFECTO, execute, listas_participantes, query, registrar_bitacora, transaction
 
 sorteos_bp = Blueprint('sorteos', __name__)
 
@@ -50,26 +52,42 @@ def inyectar_estados():
     return {'ESTADOS_SORTEO': ESTADOS}
 
 
-def _where(seleccion):
-    """WHERE para los valores elegidos ({'empresa': [...], ...}). Los campos salen de FILTROS (seguros)."""
-    condiciones, params = [], []
+def _where(seleccion, lista):
+    """WHERE para la lista y los valores elegidos ({'empresa': [...], ...}).
+    Los campos salen de FILTROS (seguros)."""
+    if lista is None:
+        return '1 = 0', []  # Aún no hay empleados cargados
+    condiciones, params = ['lista = %s'], [lista]
     for campo, valores in seleccion.items():
         if valores:
             condiciones.append(f"{campo} IN ({', '.join(['%s'] * len(valores))})")
             params += valores
-    return (' AND '.join(condiciones) or '1 = 1'), params
+    return ' AND '.join(condiciones), params
+
+
+def _elegir_lista(fuente, listas):
+    """La lista pedida si existe; si no, "Empleados" o la primera disponible."""
+    nombres = [l['lista'] for l in listas]
+    pedida = fuente.get('lista')
+    if pedida in nombres:
+        return pedida
+    if LISTA_POR_DEFECTO in nombres:
+        return LISTA_POR_DEFECTO
+    return nombres[0] if nombres else None
 
 
 def resolver_filtros(fuente):
-    """Filtros en cascada: empresa -> distrito -> departamento.
+    """Lista de participantes y filtros en cascada: empresa -> distrito -> departamento.
 
-    Las opciones de cada grupo dependen de lo elegido en los anteriores, y lo elegido
-    que ya no existe (p. ej. un distrito sin empleados en la empresa marcada) se descarta.
-    Devuelve (opciones, seleccion, total de participantes).
+    Las opciones de cada grupo dependen de la lista y de lo elegido en los anteriores, y lo
+    elegido que ya no existe (p. ej. un distrito sin empleados en la empresa marcada) se descarta.
+    Devuelve (opciones, seleccion, total de participantes, lista elegida, listas).
     """
+    listas = listas_participantes()
+    lista = _elegir_lista(fuente, listas)
     opciones, seleccion = {}, {}
     for campo in FILTROS:
-        where, params = _where(seleccion)
+        where, params = _where(seleccion, lista)
         opciones[campo] = query(
             f'''SELECT {campo} AS valor, COUNT(*) AS n FROM v_empleados_elegibles
                 WHERE {campo} IS NOT NULL AND {campo} <> '' AND {where}
@@ -77,9 +95,9 @@ def resolver_filtros(fuente):
         disponibles = {o['valor'] for o in opciones[campo]}
         seleccion[campo] = [v for v in fuente.getlist(campo) if v in disponibles]
 
-    where, params = _where(seleccion)
+    where, params = _where(seleccion, lista)
     total = query(f'SELECT COUNT(*) AS n FROM v_empleados_elegibles WHERE {where}', params, one=True)['n']
-    return opciones, seleccion, total
+    return opciones, seleccion, total, lista, listas
 
 
 def _obtener_sorteo(sorteo_id):
@@ -136,8 +154,8 @@ def inicio():
 
 @sorteos_bp.route('/sorteos/opciones')
 def opciones_filtros():
-    opciones, seleccion, total = resolver_filtros(request.args)
-    return jsonify({'opciones': opciones, 'seleccion': seleccion, 'total': total})
+    opciones, seleccion, total, lista, _ = resolver_filtros(request.args)
+    return jsonify({'opciones': opciones, 'seleccion': seleccion, 'total': total, 'lista': lista})
 
 
 @sorteos_bp.route('/sorteos/nuevo', methods=['GET', 'POST'])
@@ -148,11 +166,11 @@ def nuevo():
         if not nombre or len(nombre) > 120:
             flash('Escribe un nombre para el sorteo (máximo 120 caracteres)', 'error')
         else:
-            _, seleccion, _ = resolver_filtros(request.form)
-            where, params = _where(seleccion)
+            _, seleccion, _, lista, _ = resolver_filtros(request.form)
+            where, params = _where(seleccion, lista)
             with transaction() as cur:
-                cur.execute('INSERT INTO sorteos (nombre, descripcion, creado_por) VALUES (%s, %s, %s)',
-                            (nombre, descripcion[:255] if descripcion else None, g.user['id']))
+                cur.execute('INSERT INTO sorteos (nombre, descripcion, lista, creado_por) VALUES (%s, %s, %s, %s)',
+                            (nombre, descripcion[:255] if descripcion else None, lista, g.user['id']))
                 sorteo_id = cur.lastrowid
                 cur.execute(
                     f'''INSERT INTO sorteo_participantes (sorteo_id, empleado_id)
@@ -163,13 +181,13 @@ def nuevo():
                     raise _SinParticipantes()
                 cur.execute('UPDATE sorteos SET total_participantes = %s WHERE id = %s', (total, sorteo_id))
             filtros = {c: v for c, v in seleccion.items() if v}
-            registrar_bitacora('CREAR_SORTEO', {'sorteo_id': sorteo_id, 'nombre': nombre,
+            registrar_bitacora('CREAR_SORTEO', {'sorteo_id': sorteo_id, 'nombre': nombre, 'lista': lista,
                                                 'participantes': total, 'filtros': filtros})
             return redirect(url_for('sorteos.ruleta', sorteo_id=sorteo_id))
 
-    opciones, seleccion, total = resolver_filtros(request.form)
+    opciones, seleccion, total, lista, listas = resolver_filtros(request.form or request.args)
     return render_template('sorteos/nuevo.html', opciones=opciones, seleccion=seleccion, total=total,
-                           form=request.form)
+                           lista=lista, listas=listas, form=request.form)
 
 
 class _SinParticipantes(Exception):
@@ -178,7 +196,7 @@ class _SinParticipantes(Exception):
 
 @sorteos_bp.errorhandler(_SinParticipantes)
 def sin_participantes(error):
-    flash('Ningún empleado cumple con los filtros elegidos (o todos ya ganaron)', 'error')
+    flash('Ningún empleado de la lista cumple con los filtros elegidos (o todos ya ganaron)', 'error')
     return redirect(url_for('sorteos.nuevo'))
 
 
@@ -360,7 +378,8 @@ def pdf(sorteo_id):
     if sorteo['descripcion']:
         elementos.append(Paragraph(sorteo['descripcion'], texto))
     elementos += [
-        Paragraph(f"Participantes: <b>{sorteo['total_participantes']}</b> · Ganadores: <b>{len(ganadores)}</b>", texto),
+        Paragraph((f"Lista: <b>{escape(sorteo['lista'])}</b> · " if sorteo.get('lista') else '')
+                  + f"Participantes: <b>{sorteo['total_participantes']}</b> · Ganadores: <b>{len(ganadores)}</b>", texto),
         Spacer(1, 14),
     ]
 

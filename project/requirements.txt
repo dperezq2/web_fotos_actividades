@@ -17,6 +17,6 @@ PyMySQL==1.1.1
 cryptography==43.0.3
 
 # Fotos y PDF
-pillow==11.0.0
+pillow==13.0.0
 reportlab==4.4.5
 charset-normalizer==3.3.2

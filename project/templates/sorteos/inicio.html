@@ -67,7 +67,7 @@
                 {% for s in sorteos %}
                 {% set estado = ESTADOS_SORTEO[s.estado] %}
                 <tr>
-                    <td data-label="Sorteo"><a class="link-strong" href="{{ url_for('sorteos.ruleta', sorteo_id=s.id) }}">{{ s.nombre }}</a></td>
+                    <td data-label="Sorteo"><a class="link-strong" href="{{ url_for('sorteos.ruleta', sorteo_id=s.id) }}">{{ s.nombre }}</a>{% if s.lista %} <span class="tag tag--muted">{{ s.lista }}</span>{% endif %}</td>
                     <td data-label="Fecha">{{ s.created_at|fecha }}</td>
                     <td data-label="Estado"><span class="tag {{ estado[1] }}">{{ estado[0] }}</span></td>
                     <td data-label="Participantes">{{ s.total_participantes }}</td>

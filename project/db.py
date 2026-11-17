@@ -69,6 +69,34 @@ def execute(sql, params=None):
         return cur.lastrowid
 
 
+LISTA_POR_DEFECTO = 'Empleados'
+LISTA_MAX = 60
+
+
+def listas_participantes():
+    """Listas existentes con sus conteos: [{'lista', 'total', 'elegibles'}], ordenadas por nombre."""
+    return query(
+        '''SELECT e.lista, COUNT(*) AS total, COALESCE(SUM(e.activo = 1 AND g.id IS NULL), 0) AS elegibles
+           FROM empleados e LEFT JOIN ganadores g ON g.empleado_id = e.id
+           GROUP BY e.lista ORDER BY e.lista''')
+
+
+def normalizar_lista(nombre, existentes=None):
+    """Limpia el nombre escrito y, si ya existe una lista igual (sin importar mayúsculas
+    ni tildes), usa la escritura existente. Devuelve '' si queda vacío."""
+    nombre = ' '.join((nombre or '').split())[:LISTA_MAX]
+    if existentes is None:
+        existentes = [l['lista'] for l in listas_participantes()]
+    clave = _clave(nombre)
+    return next((l for l in existentes if _clave(l) == clave), nombre)
+
+
+def _clave(texto):
+    import unicodedata
+    sin_tildes = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode()
+    return sin_tildes.casefold()
+
+
 def registrar_bitacora(accion, detalle=None, usuario_id=None):
     if usuario_id is None and 'user' in g and g.user:
         usuario_id = g.user['id']
@@ -82,10 +110,38 @@ def registrar_bitacora(accion, detalle=None, usuario_id=None):
 
 
 # Cambios de esquema para bases ya creadas (01_schema.sql solo corre en una base nueva).
-# Cada uno: (tabla, columna, sentencia). Se aplican al arrancar si la columna no existe.
+# Cada uno: (nombre, consulta que devuelve n > 0 si ya está aplicado, sentencias).
+# Se aplican al arrancar, en orden, solo si hacen falta.
+_EXISTE_COLUMNA = '''SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+                     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{}' AND COLUMN_NAME = '{}' '''
+_EXISTE_INDICE = '''SELECT COUNT(*) AS n FROM information_schema.STATISTICS
+                    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{}' AND INDEX_NAME = '{}' '''
+
+VISTA_ELEGIBLES = '''CREATE OR REPLACE VIEW v_empleados_elegibles AS
+    SELECT e.* FROM empleados e
+    LEFT JOIN ganadores g ON g.empleado_id = e.id
+    WHERE e.activo = 1 AND g.id IS NULL'''
+
 MIGRACIONES = [
-    ('ganadores', 'revelado_at',
-     'ALTER TABLE ganadores ADD COLUMN revelado_at DATETIME NULL AFTER fecha'),
+    ('ganadores.revelado_at', _EXISTE_COLUMNA.format('ganadores', 'revelado_at'),
+     ['ALTER TABLE ganadores ADD COLUMN revelado_at DATETIME NULL AFTER fecha']),
+
+    # Listas de participantes ("Empleados", "Cooperativa"...): el mismo CUE puede estar en
+    # varias listas, y quien gana en una sigue participando en las demás.
+    ('empleados.lista', _EXISTE_COLUMNA.format('empleados', 'lista'),
+     ["ALTER TABLE empleados ADD COLUMN lista VARCHAR(60) NOT NULL DEFAULT 'Empleados' AFTER id"]),
+    ('empleados: CUE único por lista', _EXISTE_INDICE.format('empleados', 'uq_empleados_lista_cue'),
+     ['''ALTER TABLE empleados
+            DROP INDEX uq_empleados_cue,
+            ADD UNIQUE KEY uq_empleados_lista_cue (lista, cue),
+            DROP INDEX idx_empleados_filtros,
+            ADD KEY idx_empleados_filtros (lista, empresa, distrito, departamento)''']),
+    # La vista guarda las columnas de empleados de cuando se creó: hay que recrearla
+    ('v_empleados_elegibles.lista', _EXISTE_COLUMNA.format('v_empleados_elegibles', 'lista'),
+     [VISTA_ELEGIBLES]),
+    ('sorteos.lista', _EXISTE_COLUMNA.format('sorteos', 'lista'),
+     ['ALTER TABLE sorteos ADD COLUMN lista VARCHAR(60) NULL AFTER descripcion',
+      "UPDATE sorteos SET lista = 'Empleados' WHERE lista IS NULL"]),  # Los anteriores eran de la única lista
 ]
 
 
@@ -98,19 +154,23 @@ def aplicar_migraciones():
         return
     try:
         with conn.cursor() as cur:
-            for tabla, columna, sentencia in MIGRACIONES:
-                cur.execute(
-                    '''SELECT COUNT(*) AS n FROM information_schema.COLUMNS
-                       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s''',
-                    (tabla, columna))
-                if cur.fetchone()['n']:
-                    continue
-                try:
-                    cur.execute(sentencia)
-                    logger.info(f'Migración aplicada: {tabla}.{columna}')
-                except pymysql.err.OperationalError as error:
-                    if error.args[0] != 1060:  # Otro worker ya la aplicó (columna duplicada)
-                        raise
-        conn.commit()
+            # Los workers de Gunicorn arrancan a la vez: solo uno migra, los demás esperan
+            cur.execute("SELECT GET_LOCK('sorteos_migraciones', 60) AS ok")
+            if not cur.fetchone()['ok']:
+                logger.error('No se pudo obtener el bloqueo para revisar las migraciones')
+                return
+            try:
+                for nombre, verificacion, sentencias in MIGRACIONES:
+                    cur.execute(verificacion)
+                    if cur.fetchone()['n']:
+                        continue
+                    for sentencia in sentencias:
+                        cur.execute(sentencia)
+                    conn.commit()
+                    logger.info(f'Migración aplicada: {nombre}')
+            finally:
+                cur.execute("SELECT RELEASE_LOCK('sorteos_migraciones')")
+    except Exception as error:
+        logger.error(f'Error al aplicar migraciones: {error!r}')
     finally:
         conn.close()

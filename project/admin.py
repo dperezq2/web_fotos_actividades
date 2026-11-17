@@ -6,7 +6,8 @@ import re
 from flask import Blueprint, Response, flash, g, redirect, render_template, request, session, url_for
 
 from auth import ROLES, generar_password, hash_password, superadmin_required
-from db import execute, query, registrar_bitacora, transaction
+from db import (LISTA_POR_DEFECTO, execute, listas_participantes, normalizar_lista, query, registrar_bitacora,
+                transaction)
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -118,8 +119,15 @@ def empleados():
     empresa = request.args.get('empresa', '')
     distrito = request.args.get('distrito', '')
     pagina = max(request.args.get('pagina', 1, type=int), 1)
+    listas = listas_participantes()
+    lista = request.args.get('lista', '')
+    if lista not in {l['lista'] for l in listas}:
+        lista = ''
 
     condiciones, params = [], []
+    if lista:
+        condiciones.append('e.lista = %s')
+        params.append(lista)
     if q:
         condiciones.append('(e.cue LIKE %s OR e.nombre_completo LIKE %s OR e.departamento LIKE %s)')
         params += [f'%{q}%'] * 3
@@ -132,31 +140,37 @@ def empleados():
     where = ('WHERE ' + ' AND '.join(condiciones)) if condiciones else ''
 
     total_filtrado = query(f'SELECT COUNT(*) AS n FROM empleados e {where}', params, one=True)['n']
-    lista = query(
+    filas = query(
         f'''SELECT e.*, (g.id IS NOT NULL) AS ha_ganado
             FROM empleados e LEFT JOIN ganadores g ON g.empleado_id = e.id
             {where}
-            ORDER BY e.nombre_completo
+            ORDER BY e.nombre_completo, e.lista
             LIMIT %s OFFSET %s''',
         params + [POR_PAGINA, (pagina - 1) * POR_PAGINA],
     )
 
+    # Resumen y opciones de filtro de la lista elegida (o de todas)
+    where_lista, params_lista = ('WHERE e.lista = %s', [lista]) if lista else ('', [])
     resumen = query(
-        '''SELECT COUNT(*) AS total,
+        f'''SELECT COUNT(*) AS total,
                   COALESCE(SUM(e.activo = 1), 0) AS activos,
                   COUNT(g.id) AS ganadores,
                   COALESCE(SUM(e.activo = 1 AND g.id IS NULL), 0) AS elegibles
-           FROM empleados e LEFT JOIN ganadores g ON g.empleado_id = e.id''',
-        one=True,
+           FROM empleados e LEFT JOIN ganadores g ON g.empleado_id = e.id {where_lista}''',
+        params_lista, one=True,
     )
+    and_lista = 'AND e.lista = %s' if lista else ''
     empresas = [r['empresa'] for r in query(
-        'SELECT DISTINCT empresa FROM empleados WHERE empresa IS NOT NULL ORDER BY empresa')]
+        f'SELECT DISTINCT empresa FROM empleados e WHERE empresa IS NOT NULL {and_lista} ORDER BY empresa',
+        params_lista)]
     distritos = [r['distrito'] for r in query(
-        'SELECT DISTINCT distrito FROM empleados WHERE distrito IS NOT NULL ORDER BY distrito')]
+        f'SELECT DISTINCT distrito FROM empleados e WHERE distrito IS NOT NULL {and_lista} ORDER BY distrito',
+        params_lista)]
 
     return render_template(
         'admin/empleados.html',
-        empleados=lista, resumen=resumen, empresas=empresas, distritos=distritos,
+        empleados=filas, resumen=resumen, empresas=empresas, distritos=distritos,
+        listas=listas, lista=lista, lista_por_defecto=LISTA_POR_DEFECTO,
         q=q, empresa=empresa, distrito=distrito, pagina=pagina,
         total_paginas=max((total_filtrado + POR_PAGINA - 1) // POR_PAGINA, 1),
         total_filtrado=total_filtrado,
@@ -196,14 +210,30 @@ def _decodificar(raw):
     return raw.decode('utf-8', errors='replace')
 
 
+SEPARADORES = (',', ';', '\t')
+
+
+def _filas_csv(texto, intentos=2):
+    """Lee el CSV detectando el separador (Excel en español usa ";").
+
+    Si el archivo se abrió en Excel con todo en la columna A y se volvió a guardar,
+    cada línea queda envuelta entre comillas ("cue,""nombre_completo"",...") y se lee
+    como una sola columna: en ese caso se desenvuelve y se vuelve a leer."""
+    primera_linea = texto.split('\n', 1)[0]
+    separador = max(SEPARADORES, key=primera_linea.count)
+    filas = list(csv.reader(io.StringIO(texto), delimiter=separador))
+
+    encabezado = filas[0] if filas else []
+    if intentos > 1 and len(encabezado) == 1 and any(s in encabezado[0] for s in SEPARADORES):
+        interior = '\n'.join(fila[0] if fila else '' for fila in filas)
+        return _filas_csv(interior, intentos - 1)
+    return filas
+
+
 def leer_csv_empleados(raw):
     """Valida el CSV completo. Devuelve (filas, errores); si hay errores no se importa nada."""
     texto = _decodificar(raw)
-    # Excel en español guarda con ";" en lugar de ","
-    primera_linea = texto.split('\n', 1)[0]
-    separador = max((',', ';', '\t'), key=primera_linea.count)
-
-    reader = csv.reader(io.StringIO(texto), delimiter=separador)
+    reader = iter(_filas_csv(texto))
     encabezados = next(reader, None)
     if not encabezados:
         return [], ['El archivo está vacío']
@@ -253,7 +283,11 @@ def leer_csv_empleados(raw):
 def importar_empleados():
     archivo = request.files.get('archivo')
     desactivar_faltantes = request.form.get('desactivar_faltantes') == '1'
+    lista = normalizar_lista(request.form.get('lista'))
 
+    if not lista:
+        flash('Escribe a qué lista pertenece el archivo (p. ej. Empleados o Cooperativa)', 'error')
+        return redirect(url_for('admin.empleados'))
     if not archivo or not archivo.filename:
         flash('Selecciona un archivo CSV', 'error')
         return redirect(url_for('admin.empleados'))
@@ -273,17 +307,18 @@ def importar_empleados():
         }
         return redirect(url_for('admin.empleados'))
 
-    existentes = {r['cue'] for r in query('SELECT cue FROM empleados')}
+    # Todo es dentro de la lista elegida: las demás listas no se tocan
+    existentes = {r['cue'] for r in query('SELECT cue FROM empleados WHERE lista = %s', (lista,))}
     nuevos = sum(f['cue'] not in existentes for f in filas)
     desactivados = 0
 
     with transaction() as cur:
         if desactivar_faltantes:
             # Quien no viene en el archivo deja de participar; quien viene se reactiva
-            cur.execute('UPDATE empleados SET activo = 0 WHERE activo = 1')
+            cur.execute('UPDATE empleados SET activo = 0 WHERE activo = 1 AND lista = %s', (lista,))
         cur.executemany(
-            f'''INSERT INTO empleados (cue, nombre_completo, empresa, distrito, departamento, path_fotografia)
-                VALUES (%s, %s, %s, %s, %s, %s) AS nuevo
+            f'''INSERT INTO empleados (lista, cue, nombre_completo, empresa, distrito, departamento, path_fotografia)
+                VALUES (%s, %s, %s, %s, %s, %s, %s) AS nuevo
                 ON DUPLICATE KEY UPDATE
                     nombre_completo = nuevo.nombre_completo,
                     empresa = nuevo.empresa,
@@ -291,15 +326,16 @@ def importar_empleados():
                     departamento = nuevo.departamento,
                     path_fotografia = nuevo.path_fotografia
                     {', activo = 1' if desactivar_faltantes else ''}''',
-            [tuple(f[c] for c in CSV_COLUMNS) for f in filas],
+            [(lista,) + tuple(f[c] for c in CSV_COLUMNS) for f in filas],
         )
         if desactivar_faltantes:
-            cur.execute('SELECT COUNT(*) AS n FROM empleados WHERE activo = 0')
+            cur.execute('SELECT COUNT(*) AS n FROM empleados WHERE activo = 0 AND lista = %s', (lista,))
             desactivados = cur.fetchone()['n']
 
     resultado = {
         'ok': True,
         'archivo': archivo.filename,
+        'lista': lista,
         'total': len(filas),
         'nuevos': nuevos,
         'actualizados': len(filas) - nuevos,
@@ -307,4 +343,4 @@ def importar_empleados():
     }
     registrar_bitacora('IMPORTAR_EMPLEADOS', resultado)
     session['resultado_importacion'] = resultado
-    return redirect(url_for('admin.empleados'))
+    return redirect(url_for('admin.empleados', lista=lista))

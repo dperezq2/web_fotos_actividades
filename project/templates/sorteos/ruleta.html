@@ -31,6 +31,7 @@
         <h1>{{ sorteo.nombre }}</h1>
         <p>
             <span class="tag {{ estado[1] }}" id="estadoTag">{{ estado[0] }}</span>
+            {% if sorteo.lista %}<span class="tag tag--muted"><i class="fa-solid fa-users-rectangle"></i> {{ sorteo.lista }}</span>{% endif %}
             Creado el {{ sorteo.created_at|fecha }}{% if sorteo.creado_por_nombre %} por {{ sorteo.creado_por_nombre }}{% endif %}
         </p>
         {% if sorteo.descripcion %}<p>{{ sorteo.descripcion }}</p>{% endif %}

@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS empleados (
     id              INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    lista           VARCHAR(60)  NOT NULL DEFAULT 'Empleados', -- Lista de participantes (Empleados, Cooperativa...)
     cue             VARCHAR(10)  NOT NULL,                 -- Texto: conserva ceros a la izquierda
     nombre_completo VARCHAR(150) NOT NULL,
     empresa         VARCHAR(60)  NULL,
@@ -36,8 +37,8 @@ CREATE TABLE IF NOT EXISTS empleados (
     created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uq_empleados_cue (cue),
-    KEY idx_empleados_filtros (empresa, distrito, departamento)
+    UNIQUE KEY uq_empleados_lista_cue (lista, cue),        -- El mismo CUE puede estar en varias listas
+    KEY idx_empleados_filtros (lista, empresa, distrito, departamento)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ------------------------------------------------------------
@@ -47,6 +48,7 @@ CREATE TABLE IF NOT EXISTS sorteos (
     id                  INT UNSIGNED NOT NULL AUTO_INCREMENT,
     nombre              VARCHAR(120) NOT NULL,             -- Ej. "Convivio 2025 - Distrito 1"
     descripcion         VARCHAR(255) NULL,
+    lista               VARCHAR(60)  NULL,                 -- Lista de participantes usada
     estado              ENUM('BORRADOR', 'EN_CURSO', 'FINALIZADO') NOT NULL DEFAULT 'BORRADOR',
     total_participantes INT UNSIGNED NOT NULL DEFAULT 0,
     creado_por          INT UNSIGNED NULL,
@@ -74,8 +76,9 @@ CREATE TABLE IF NOT EXISTS sorteo_participantes (
 
 -- ------------------------------------------------------------
 -- ganadores
--- uq_ganadores_empleado garantiza que una persona gane una sola vez
--- en todos los sorteos. Si se elimina un sorteo, sus ganadores se
+-- uq_ganadores_empleado garantiza que cada registro de empleado gane una
+-- sola vez. Como hay un registro por lista, quien gana en "Empleados"
+-- sigue participando en "Cooperativa" (y viceversa). Si se elimina un sorteo, sus ganadores se
 -- eliminan (CASCADE) y esas personas vuelven a poder participar.
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ganadores (

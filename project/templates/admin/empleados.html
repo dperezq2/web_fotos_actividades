@@ -5,7 +5,8 @@
 {% block content %}
 <div class="page-head">
     <h1>Empleados</h1>
-    <p>Personal que participa en los sorteos. Quien gana una vez ya no vuelve a participar.</p>
+    <p>Personal que participa en los sorteos, organizado en listas (p. ej. Empleados, Cooperativa).
+       Quien gana ya no vuelve a participar en sorteos de esa misma lista.</p>
 </div>
 
 <div class="stats">
@@ -33,7 +34,7 @@
     {% if resultado_importacion %}
         {% if resultado_importacion.ok %}
         <div class="alert alert--success" role="status">
-            <strong><i class="fa-solid fa-circle-check"></i> {{ resultado_importacion.archivo }} importado.</strong>
+            <strong><i class="fa-solid fa-circle-check"></i> {{ resultado_importacion.archivo }} importado{% if resultado_importacion.lista %} en la lista «{{ resultado_importacion.lista }}»{% endif %}.</strong>
             <ul class="result-list">
                 <li>{{ resultado_importacion.total }} empleados en el archivo</li>
                 <li>{{ resultado_importacion.nuevos }} nuevos · {{ resultado_importacion.actualizados }} actualizados</li>
@@ -57,6 +58,35 @@
     {% endif %}
 
     <form method="post" action="{{ url_for('admin.importar_empleados') }}" enctype="multipart/form-data" class="form-grid">
+        <div class="field">
+            <label for="listaImportar">Lista</label>
+            {# Selector con diseño propio (app.js → data-combo): elige una lista o escribe una nueva #}
+            <div class="combo" data-combo>
+                <input class="input combo__input" id="listaImportar" name="lista" maxlength="60" required autocomplete="off"
+                       role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="listaOpciones"
+                       value="{{ lista or (listas[0].lista if listas|length == 1 else ('' if listas else lista_por_defecto)) }}"
+                       placeholder="Ej. Empleados, Cooperativa">
+                <button type="button" class="combo__toggle" tabindex="-1" aria-label="Ver listas existentes">
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+                <ul class="combo__menu" id="listaOpciones" role="listbox" aria-label="Listas existentes" hidden>
+                    {% for l in listas %}
+                    <li class="combo__option" role="option" data-value="{{ l.lista }}">
+                        <i class="fa-solid fa-users-rectangle combo__icon"></i>
+                        <span class="combo__label">{{ l.lista }}</span>
+                        <small class="combo__count">{{ l.total }}</small>
+                    </li>
+                    {% endfor %}
+                    <li class="combo__option combo__option--new" role="option" data-nueva hidden>
+                        <i class="fa-solid fa-plus combo__icon"></i>
+                        <span class="combo__label">Crear lista «<b data-nueva-texto></b>»</span>
+                    </li>
+                    <li class="combo__empty" data-vacio hidden>Escribe un nombre para crear la primera lista</li>
+                </ul>
+            </div>
+            <small class="hint">Elige una lista existente o escribe un nombre nuevo para crearla. El mismo CUE puede estar en varias listas.</small>
+        </div>
+
         <div class="file-picker">
             <label class="btn btn--outline" for="archivo"><i class="fa-solid fa-folder-open"></i> Elegir archivo</label>
             <input type="file" id="archivo" name="archivo" accept=".csv,text/csv" class="visually-hidden" required data-file-name="archivoNombre">
@@ -66,8 +96,8 @@
         <label class="check">
             <input type="checkbox" name="desactivar_faltantes" value="1">
             <span>
-                Este archivo contiene a <b>todo</b> el personal
-                <small>Quien no venga en el archivo quedará inactivo y no participará en los sorteos.</small>
+                Este archivo contiene a <b>toda</b> la lista
+                <small>Quien no venga en el archivo quedará inactivo en esta lista. Las demás listas no se modifican.</small>
             </span>
         </label>
 
@@ -78,7 +108,7 @@
 
         <p class="hint">
             Columnas: <code>cue,nombre_completo,empresa,distrito,departamento,path_fotografia</code>.
-            Solo <b>cue</b> y <b>nombre_completo</b> son obligatorias. Si el CUE ya existe, se actualizan sus datos.
+            Solo <b>cue</b> y <b>nombre_completo</b> son obligatorias. Si el CUE ya existe en la lista, se actualizan sus datos.
             Si alguna línea tiene un error, no se importa nada.
         </p>
     </form>
@@ -87,11 +117,20 @@
 <section class="card">
     <h2 class="card__title"><i class="fa-solid fa-list"></i> Listado</h2>
 
-    <form method="get" class="form-grid form-grid--filters" style="margin-bottom:16px">
+    <form method="get" class="form-grid form-grid--filters {{ 'con-lista' if listas|length > 1 }}" style="margin-bottom:16px">
         <div class="field">
             <label for="q">Buscar</label>
             <input class="input" type="search" id="q" name="q" value="{{ q }}" placeholder="CUE, nombre o departamento">
         </div>
+        {% if listas|length > 1 %}
+        <div class="field">
+            <label for="lista">Lista</label>
+            <select class="select" id="lista" name="lista">
+                <option value="">Todas</option>
+                {% for l in listas %}<option value="{{ l.lista }}" {{ 'selected' if l.lista == lista }}>{{ l.lista }} ({{ l.total }})</option>{% endfor %}
+            </select>
+        </div>
+        {% endif %}
         <div class="field">
             <label for="empresa">Empresa</label>
             <select class="select" id="empresa" name="empresa">
@@ -115,6 +154,7 @@
                 <tr>
                     <th>CUE</th>
                     <th>Nombre</th>
+                    {% if listas|length > 1 %}<th>Lista</th>{% endif %}
                     <th>Empresa</th>
                     <th>Distrito</th>
                     <th>Departamento</th>
@@ -127,6 +167,7 @@
                 <tr class="{{ 'is-inactive' if not e.activo }}">
                     <td data-label="CUE"><code>{{ e.cue }}</code></td>
                     <td data-label="Nombre">{{ e.nombre_completo }}</td>
+                    {% if listas|length > 1 %}<td data-label="Lista"><span class="tag tag--muted">{{ e.lista }}</span></td>{% endif %}
                     <td data-label="Empresa">{{ e.empresa or '—' }}</td>
                     <td data-label="Distrito">{{ e.distrito or '—' }}</td>
                     <td data-label="Departamento">{{ e.departamento or '—' }}</td>
@@ -148,8 +189,8 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="7" class="empty-row">
-                    {% if q or empresa or distrito %}No hay empleados que coincidan con el filtro.{% else %}Aún no hay empleados. Importa un CSV para comenzar.{% endif %}
+                <tr><td colspan="{{ 8 if listas|length > 1 else 7 }}" class="empty-row">
+                    {% if q or empresa or distrito or lista %}No hay empleados que coincidan con el filtro.{% else %}Aún no hay empleados. Importa un CSV para comenzar.{% endif %}
                 </td></tr>
                 {% endfor %}
             </tbody>
@@ -161,10 +202,10 @@
         <span>{{ total_filtrado }} empleados · página {{ pagina }} de {{ total_paginas }}</span>
         <span class="pagination__links">
             {% if pagina > 1 %}
-            <a class="btn btn--outline btn--sm" href="{{ url_for('admin.empleados', q=q, empresa=empresa, distrito=distrito, pagina=pagina - 1) }}"><i class="fa-solid fa-chevron-left"></i> Anterior</a>
+            <a class="btn btn--outline btn--sm" href="{{ url_for('admin.empleados', q=q, lista=lista, empresa=empresa, distrito=distrito, pagina=pagina - 1) }}"><i class="fa-solid fa-chevron-left"></i> Anterior</a>
             {% endif %}
             {% if pagina < total_paginas %}
-            <a class="btn btn--outline btn--sm" href="{{ url_for('admin.empleados', q=q, empresa=empresa, distrito=distrito, pagina=pagina + 1) }}">Siguiente <i class="fa-solid fa-chevron-right"></i></a>
+            <a class="btn btn--outline btn--sm" href="{{ url_for('admin.empleados', q=q, lista=lista, empresa=empresa, distrito=distrito, pagina=pagina + 1) }}">Siguiente <i class="fa-solid fa-chevron-right"></i></a>
             {% endif %}
         </span>
     </nav>
